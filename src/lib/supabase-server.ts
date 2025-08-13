@@ -26,15 +26,24 @@ export function createServerSupabase() {
   })
 }
 
-// Cliente para middleware (sin cookies)
-export function createMiddlewareSupabase() {
+// Cliente para middleware (con cookies de request)
+export function createMiddlewareSupabase(request?: Request) {
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
+        if (request) {
+          // Extraer cookies del request
+          const cookieHeader = request.headers.get('cookie') || ''
+          const cookies = cookieHeader.split(';').map(cookie => {
+            const [name, value] = cookie.trim().split('=')
+            return { name: name || '', value: value || '' }
+          }).filter(cookie => cookie.name && cookie.value)
+          return cookies
+        }
         return []
       },
-      setAll() {
-        // No-op para middleware
+      setAll(cookiesToSet) {
+        // No-op para middleware - no podemos establecer cookies aquí
       },
     },
   })

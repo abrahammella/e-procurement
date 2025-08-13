@@ -1,62 +1,16 @@
 'use client'
 
-import { useAuth } from '@/hooks/useAuth'
+import { AdminRouteGuard } from '@/components/auth/RouteGuard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Shield, Users, Settings, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
-export default function AdminPage() {
-  const { user, profile, loading, isAuthenticated, userRole } = useAuth()
+function AdminPageContent() {
+  const { user, profile, userRole } = useAuth()
   const router = useRouter()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">Acceso Denegado</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">No tienes acceso a esta página.</p>
-            <Button onClick={() => router.push('/login')}>
-              Ir al Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (userRole !== 'admin') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">Acceso Restringido</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">Solo los administradores pueden acceder a esta página.</p>
-            <Button onClick={() => router.push('/dashboard')}>
-              Volver al Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -146,11 +100,19 @@ export default function AdminPage() {
               ¡Middleware Funcionando Correctamente!
             </h2>
             <p className="text-green-700">
-              Esta página está protegida por el middleware y solo es accesible para administradores.
+              Esta página está protegida por el RouteGuard y solo es accesible para administradores.
             </p>
           </CardContent>
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <AdminRouteGuard>
+      <AdminPageContent />
+    </AdminRouteGuard>
   )
 }

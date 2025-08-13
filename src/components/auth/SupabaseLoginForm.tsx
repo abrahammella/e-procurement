@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Eye, EyeOff, AlertCircle, Loader2, LogIn, Mail, Lock, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { redirectTo } from '@/lib/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 interface LoginData {
   email: string
@@ -26,6 +26,7 @@ interface ValidationErrors {
 export function SupabaseLoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { handlePostLoginRedirect } = useAuth()
   const [data, setData] = useState<LoginData>({
     email: '',
     password: '',
@@ -129,63 +130,17 @@ export function SupabaseLoginForm() {
       if (authData.user) {
         console.log('✅ User authenticated:', authData.user.id, authData.user.email)
         
-        // Fetch user profile
-        console.log('🔍 Fetching user profile...')
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single()
-
-        if (profileError) {
-          console.error('❌ Error fetching profile:', profileError)
-          // Still redirect to dashboard even if profile fetch fails
-        } else {
-          console.log('👤 Profile fetched:', profile)
-        }
-
-        // Redirect to intended page or dashboard
-        console.log('🔄 Starting redirect logic...')
+        // Get redirect parameter
         const redirectParam = searchParams.get('redirect')
-        let redirectPath = '/dashboard'
+        console.log('🔍 Redirect parameter:', redirectParam)
         
-        console.log('🔍 Current URL:', window.location.href)
-        console.log('🔍 Search params:', searchParams.toString())
-        console.log('🔍 Redirect parameter raw:', redirectParam)
-        
-        if (redirectParam) {
-          try {
-            // Decode the redirect parameter (it might be URL encoded)
-            redirectPath = decodeURIComponent(redirectParam)
-            console.log('🔄 Redirect parameter found:', redirectParam)
-            console.log('🔄 Decoded redirect path:', redirectPath)
-            
-            // Validate the redirect path
-            if (redirectPath.startsWith('/') && !redirectPath.includes('..')) {
-              console.log('✅ Redirect path is valid')
-            } else {
-              console.warn('⚠️ Invalid redirect path, using dashboard:', redirectPath)
-              redirectPath = '/dashboard'
-            }
-          } catch (error) {
-            console.error('❌ Error decoding redirect parameter:', error)
-            redirectPath = '/dashboard'
-          }
-        } else {
-          console.log('ℹ️ No redirect parameter found, using default dashboard')
-        }
-        
+        // Use the hook to determine the correct redirect path
+        const redirectPath = await handlePostLoginRedirect(redirectParam || undefined)
         console.log('🔄 Final redirect path:', redirectPath)
         
-        // Use direct window.location.href to avoid navigation conflicts
-        console.log('🚀 Using direct redirect to:', redirectPath)
-        console.log('🚀 About to execute: window.location.href =', redirectPath)
-        
-        // Add a small delay to ensure all logs are visible
-        setTimeout(() => {
-          console.log('🚀 Executing redirect now...')
-          window.location.href = redirectPath
-        }, 1000)
+        // Redirect to the determined path
+        console.log('🚀 Redirecting to:', redirectPath)
+        router.push(redirectPath)
         
       } else {
         console.error('❌ No user data in auth response')

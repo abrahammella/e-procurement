@@ -1,5 +1,6 @@
 'use client'
 
+import { AuthenticatedRouteGuard } from '@/components/auth/RouteGuard'
 import { useAuth } from '@/hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -7,8 +8,8 @@ import { Button } from '@/components/ui/button'
 import { LogOut, User, Shield, CheckCircle, Building2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-export default function DashboardPage() {
-  const { user, profile, loading, error, isAuthenticated, userRole, signOut } = useAuth()
+function DashboardPageContent() {
+  const { user, profile, userRole, signOut } = useAuth()
   const router = useRouter()
 
   const handleSignOut = async () => {
@@ -33,35 +34,6 @@ export default function DashboardPage() {
       // En caso de error, también redirigir al login
       router.push('/login')
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">Acceso Denegado</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">No tienes acceso a esta página.</p>
-            <Button onClick={() => router.push('/login')}>
-              Ir al Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
@@ -140,6 +112,47 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Role-specific Navigation */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-center">Acceso por Rol</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {userRole === 'admin' && (
+                <Button 
+                  onClick={() => router.push('/admin')} 
+                  variant="default"
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Shield className="h-5 w-5 mr-2" />
+                  Ir al Panel de Administrador
+                </Button>
+              )}
+              
+              {userRole === 'supplier' && (
+                <Button 
+                  onClick={() => router.push('/supplier')} 
+                  variant="default"
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Building2 className="h-5 w-5 mr-2" />
+                  Ir al Panel de Proveedor
+                </Button>
+              )}
+              
+              {!userRole && (
+                <div className="text-center text-gray-500">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                  <p>Rol no definido. Contacta al administrador.</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <div className="text-center space-y-4">
           <Button onClick={handleSignOut} variant="outline" size="lg">
@@ -147,33 +160,24 @@ export default function DashboardPage() {
             Cerrar Sesión
           </Button>
           
-          {/* Navigation Links */}
+          {/* Debug Navigation (for testing) */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
             <Button 
               onClick={() => router.push('/admin')} 
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700"
+              variant="outline"
+              className="border-blue-300 text-blue-700 hover:bg-blue-50"
             >
-              <Shield className="h-5 w-5 mr-2" />
-              Panel de Admin
+              <Shield className="h-4 w-4 mr-2" />
+              Probar Admin (Debug)
             </Button>
             
             <Button 
               onClick={() => router.push('/supplier')} 
-              variant="default"
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Building2 className="h-5 w-5 mr-2" />
-              Panel de Supplier
-            </Button>
-            
-            <Button 
-              onClick={() => router.push('/redirect-debug')} 
               variant="outline"
-              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+              className="border-green-300 text-green-700 hover:bg-green-50"
             >
-              <AlertCircle className="h-5 w-5 mr-2" />
-              Debug Redirect
+              <Building2 className="h-4 w-4 mr-2" />
+              Probar Supplier (Debug)
             </Button>
           </div>
         </div>
@@ -185,5 +189,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <AuthenticatedRouteGuard>
+      <DashboardPageContent />
+    </AuthenticatedRouteGuard>
   )
 }

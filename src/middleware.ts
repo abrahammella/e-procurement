@@ -4,48 +4,53 @@ import { createMiddlewareSupabase } from '@/lib/supabase-server';
 
 // Definir rutas por tipo
 const PUBLIC_ROUTES = ['/login', '/signup', '/signup/wizard', '/reset-password', '/forgot-password'];
-const ADMIN_ROUTES = ['/admin', '/admin/users', '/admin/settings', '/admin/reports'];
-const SUPPLIER_ROUTES = ['/supplier', '/supplier/proposals', '/supplier/invoices'];
+const ADMIN_ROUTES = ['/admin'];
+const SUPPLIER_ROUTES = ['/supplier'];
 const SHARED_PROTECTED = ['/dashboard', '/profile', '/settings', '/tenders', '/rfp', '/proposals', '/invoices'];
 
 // Función helper para verificar si una ruta coincide con un patrón
-function startsWithAny(path: string, routes: string[]) {
-  return routes.some((r) => path === r || path.startsWith(r + '/'));
+function isPublicRoute(path: string): boolean {
+  return PUBLIC_ROUTES.some(route => path === route || path.startsWith(route + '/'));
+}
+
+function isProtectedRoute(path: string): boolean {
+  return ADMIN_ROUTES.some(route => path === route || path.startsWith(route + '/')) ||
+         SUPPLIER_ROUTES.some(route => path === route || path.startsWith(route + '/')) ||
+         SHARED_PROTECTED.some(route => path === route || path.startsWith(route + '/'));
 }
 
 export async function middleware(req: NextRequest) {
-  // STEP 3: Selective protection - Only protect specific routes
   const { pathname } = req.nextUrl;
   
   console.log('🔍 Middleware - Pathname:', pathname);
   
-  // Verificar si esta ruta necesita protección
-  const needsProtection = pathname.startsWith('/admin') || 
-                         pathname.startsWith('/supplier') || 
-                         pathname.startsWith('/api/protected');
-  
-  console.log('🔍 Middleware - Needs protection:', needsProtection);
-  
-  // Si la ruta no necesita protección, permitir acceso
-  if (!needsProtection) {
+  // Allow public routes
+  if (isPublicRoute(pathname)) {
+    console.log('🔍 Middleware - Public route, allowing access');
+    return NextResponse.next();
+  }
+
+  // Check if route needs protection
+  if (!isProtectedRoute(pathname)) {
     console.log('🔍 Middleware - Route does not need protection, allowing access');
     return NextResponse.next();
   }
-  
-  try {
-    // Crear cliente Supabase para middleware
-    const supabase = createMiddlewareSupabase()
 
-    // Obtener usuario autenticado de forma segura
+  console.log('🔍 Middleware - Protected route, checking authentication');
+
+  try {
+    // Create Supabase client for middleware
+    const supabase = createMiddlewareSupabase(req);
+
+    // Get authenticated user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     console.log('🔍 Middleware - User:', user?.id, 'Error:', userError);
 
-    // Caso 1: Usuario no autenticado intenta acceder a ruta protegida
+    // If no authenticated user, redirect to login
     if (userError || !user) {
-      console.log('🔍 Middleware - No user authenticated, protecting route');
+      console.log('🔍 Middleware - No user authenticated, redirecting to login');
       
-      // Redirigir a login con redirect
       const url = req.nextUrl.clone();
       url.pathname = '/login';
       url.searchParams.set('redirect', pathname + (req.nextUrl.search || ''));
@@ -53,9 +58,10 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Caso 2: Usuario autenticado - verificar rol para rutas específicas
+    // User is authenticated - check role-based access
     console.log('🔍 Middleware - User authenticated:', user.email);
     
+    // Get user role from app_metadata or profiles table
     let role = (user.app_metadata?.role as string) || null;
     if (!role) {
       const { data: profile } = await supabase
@@ -70,7 +76,7 @@ export async function middleware(req: NextRequest) {
       console.log('🔍 Middleware - Role from metadata:', role);
     }
 
-    // Verificar acceso basado en rol para rutas específicas
+    // Check role-based access for admin routes
     if (pathname.startsWith('/admin') && role !== 'admin') {
       console.log('🔍 Middleware - Non-admin user trying to access admin route');
       const url = req.nextUrl.clone();
@@ -78,6 +84,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
+    // Check role-based access for supplier routes
     if (pathname.startsWith('/supplier') && role !== 'supplier') {
       console.log('🔍 Middleware - Non-supplier user trying to access supplier route');
       const url = req.nextUrl.clone();
@@ -85,13 +92,13 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Usuario autenticado con rol correcto - permitir acceso
+    // User authenticated with correct role - allow access
     console.log('🔍 Middleware - Access granted to protected route:', pathname);
     return NextResponse.next();
 
   } catch (error) {
     console.error('❌ Middleware error:', error);
-    // En caso de error, redirigir a login para rutas protegidas
+    // On error, redirect to login for protected routes
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname + (req.nextUrl.search || ''));
@@ -101,11 +108,7 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Solo rutas que realmente necesiten middleware
-    '/admin/:path*',
-    '/supplier/:path*',
-    '/api/protected/:path*',
-    // Excluir rutas principales para evitar conflictos
-    '/((?!_next/static|_next/image|favicon.ico|api|dashboard|login|signup|signup/wizard|reset-password|forgot-password).*)',
+    // Match all routes except static files and API routes
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

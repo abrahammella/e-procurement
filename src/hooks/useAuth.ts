@@ -319,12 +319,60 @@ export function useAuth() {
     }
   }
 
+  // Handle intelligent redirect after login
+  const handlePostLoginRedirect = async (redirectPath?: string) => {
+    try {
+      if (!authState.user) {
+        console.log('❌ No user authenticated for redirect')
+        return '/dashboard'
+      }
+
+      const userRole = authState.profile?.role || 'supplier'
+      console.log('🎭 User role for redirect:', userRole)
+      console.log('🎯 Redirect path:', redirectPath)
+
+      // If redirect path is specified and valid, check if user has access
+      if (redirectPath) {
+        // Check if user has permission for the redirect path
+        if (redirectPath.startsWith('/admin') && userRole === 'admin') {
+          console.log('✅ Admin user, redirecting to admin panel')
+          return redirectPath
+        }
+
+        if (redirectPath.startsWith('/supplier') && userRole === 'supplier') {
+          console.log('✅ Supplier user, redirecting to supplier panel')
+          return redirectPath
+        }
+
+        // If user doesn't have permission, fall back to dashboard
+        if (redirectPath.startsWith('/admin') || redirectPath.startsWith('/supplier')) {
+          console.log('⚠️ User does not have permission for redirect path, using dashboard')
+          return '/dashboard'
+        }
+
+        // For other protected routes, allow if it's a valid path
+        if (redirectPath.startsWith('/dashboard') || redirectPath.startsWith('/profile') || redirectPath.startsWith('/settings')) {
+          return redirectPath
+        }
+      }
+
+      // Default: always redirect to dashboard
+      // Users can navigate to their specific role panels from there
+      console.log('🎯 Using default dashboard redirect')
+      return '/dashboard'
+    } catch (error) {
+      console.error('❌ Error in handlePostLoginRedirect:', error)
+      return '/dashboard'
+    }
+  }
+
   return {
     ...authState,
     signOut,
     refreshSession,
     refreshProfile,
     getSession,
+    handlePostLoginRedirect,
     isAuthenticated: !!authState.user,
     isAdmin: authState.profile?.role === 'admin',
     isSupplier: authState.profile?.role === 'supplier',
