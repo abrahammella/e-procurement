@@ -7,8 +7,12 @@ export default function SignupPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect to wizard
-    router.replace('/signup/wizard')
+    // Redirect to wizard after component mounts
+    const timer = setTimeout(() => {
+      router.push('/signup/wizard')
+    }, 100)
+
+    return () => clearTimeout(timer)
   }, [router])
 
   return (

@@ -6,13 +6,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { 
-  TrendingUp, 
-  Users, 
-  FileText, 
-  DollarSign, 
-  Clock, 
-  CheckCircle, 
+import {
+  TrendingUp,
+  Users,
+  DollarSign,
+  FileText,
+  Clock,
+  CheckCircle,
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
@@ -25,531 +25,377 @@ import {
   Award,
   AlertTriangle
 } from 'lucide-react'
-
-// Temporary role flag - will be replaced with Supabase Auth later
-const TEMP_ROLE: 'admin' | 'supplier' = 'supplier' // Change this to 'supplier' to see supplier view
+import { useAuth } from '@/hooks/useAuth'
 
 // Admin View Component
 function AdminView() {
-  const adminStats = [
-    {
-      title: 'Concursos Abiertos',
-      value: '18',
-      change: '+8%',
-      changeType: 'positive',
-      icon: Target,
-      description: 'Active tenders this month'
-    },
-    {
-      title: 'RFPs Activos',
-      value: '24',
-      change: '+12%',
-      changeType: 'positive',
-      icon: FileText,
-      description: 'Request for proposals'
-    },
-    {
-      title: 'Propuestas Recibidas',
-      value: '156',
-      change: '+23%',
-      changeType: 'positive',
-      icon: FileCheck,
-      description: 'Total proposals'
-    },
-    {
-      title: 'Facturas Pendientes',
-      value: '$45.2K',
-      change: '-5%',
-      changeType: 'negative',
-      icon: Receipt,
-      description: 'vs last month'
-    }
-  ]
-
-  const recentUpdates = [
-    {
-      id: '1',
-      action: 'Nuevo concurso publicado',
-      project: '25 Hours Hotel FF&E',
-      user: 'Admin User',
-      time: '2 horas atrás',
-      status: 'published'
-    },
-    {
-      id: '2',
-      action: 'Propuesta aprobada',
-      project: 'Office Complex Renovation',
-      user: 'Procurement Team',
-      time: '4 horas atrás',
-      status: 'approved'
-    },
-    {
-      id: '3',
-      action: 'RFP enviado a proveedores',
-      project: 'Shopping Mall FF&E',
-      user: 'Admin User',
-      time: '6 horas atrás',
-      status: 'sent'
-    },
-    {
-      id: '4',
-      action: 'Factura procesada',
-      project: 'Hotel Renovation',
-      user: 'Finance Team',
-      time: '1 día atrás',
-      status: 'processed'
-    },
-    {
-      id: '5',
-      action: 'Nuevo proveedor registrado',
-      project: 'General',
-      user: 'System',
-      time: '2 días atrás',
-      status: 'registered'
-    }
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published': return 'bg-blue-100 text-blue-800'
-      case 'approved': return 'bg-green-100 text-green-800'
-      case 'sent': return 'bg-purple-100 text-purple-800'
-      case 'processed': return 'bg-gray-100 text-gray-800'
-      case 'registered': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
-          <p className="text-gray-600 mt-1">Vista general del sistema de E-Procurement</p>
-        </div>
-        <div className="flex space-x-3">
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Nuevo Concurso
-          </Button>
-          <Button className="bg-navy-600 hover:bg-navy-700">
-            <Users className="h-4 w-4 mr-2" />
-            Gestionar Proveedores
-          </Button>
-        </div>
-      </div>
-
-      {/* Admin Stats Grid */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {adminStats.map((stat, index) => {
-          const Icon = stat.icon
-          return (
-            <Card key={index} className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-navy-50 flex items-center justify-center">
-                    <Icon className="h-6 w-6 text-navy-600" />
-                  </div>
-                </div>
-                <div className="flex items-center mt-4">
-                  {stat.changeType === 'positive' ? (
-                    <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={`text-sm font-medium ml-1 ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.change}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Concursos Abiertos</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+2</span> desde el mes pasado
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">RFPs Activos</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+1</span> esta semana
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Propuestas Recibidas</CardTitle>
+            <FileCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">45</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+12</span> este mes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Facturas Pendientes</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">23</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-red-600">-5</span> esta semana
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Updates Table */}
-        <div className="lg:col-span-2">
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Últimas Actualizaciones</CardTitle>
-                  <CardDescription>Actividad reciente del sistema</CardDescription>
-                </div>
-                <Button variant="outline" size="sm">Ver Todas</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Acción</TableHead>
-                    <TableHead>Proyecto</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Tiempo</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentUpdates.map((update) => (
-                    <TableRow key={update.id}>
-                      <TableCell className="font-medium">{update.action}</TableCell>
-                      <TableCell>{update.project}</TableCell>
-                      <TableCell>{update.user}</TableCell>
-                      <TableCell>{update.time}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(update.status)}>
-                          {update.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Latest Updates Table */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle>Últimas Actualizaciones</CardTitle>
+          <CardDescription>Actividad reciente en el sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Actividad</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Fecha</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium">Nuevo RFP creado</TableCell>
+                <TableCell>admin@empresa.com</TableCell>
+                <TableCell>
+                  <Badge variant="default">Completado</Badge>
+                </TableCell>
+                <TableCell>Hace 2 horas</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Propuesta recibida</TableCell>
+                <TableCell>proveedor@ejemplo.com</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">En revisión</Badge>
+                </TableCell>
+                <TableCell>Hace 4 horas</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Concurso cerrado</TableCell>
+                <TableCell>sistema</TableCell>
+                <TableCell>
+                  <Badge variant="destructive">Cerrado</Badge>
+                </TableCell>
+                <TableCell>Hace 1 día</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        {/* Chart Placeholder */}
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>Análisis de Propuestas</CardTitle>
-              <CardDescription>Distribución por categoría</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <div className="h-16 w-16 rounded-full bg-navy-100 flex items-center justify-center mx-auto mb-4">
-                    <TrendingUp className="h-8 w-8 text-navy-600" />
-                  </div>
-                  <p className="text-sm text-gray-600">Gráfico de Propuestas</p>
-                  <p className="text-xs text-gray-500">Placeholder para visualización</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Chart Placeholder */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle>Análisis de Compras</CardTitle>
+          <CardDescription>Métricas del último trimestre</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+            <div className="text-center text-gray-500">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p>Gráfico de análisis de compras</p>
+              <p className="text-sm">Implementar con Chart.js o Recharts</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* Quick Actions */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>Acciones Rápidas</CardTitle>
-              <CardDescription>Acceso directo a funciones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  <Target className="h-4 w-4 mr-2" />
-                  Crear Concurso
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Publicar RFP
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Revisar Propuestas
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Receipt className="h-4 w-4 mr-2" />
-                  Gestionar Facturas
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Quick Actions */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle>Acciones Rápidas</CardTitle>
+          <CardDescription>Accede rápidamente a las funciones principales</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button variant="outline" className="h-20 flex-col space-y-2">
+              <FileText className="h-6 w-6" />
+              <span>Crear RFP</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex-col space-y-2">
+              <Users className="h-6 w-6" />
+              <span>Gestionar Proveedores</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex-col space-y-2">
+              <ShoppingCart className="h-6 w-6" />
+              <span>Nuevo Concurso</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex-col space-y-2">
+              <TrendingUp className="h-6 w-6" />
+              <span>Ver Reportes</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 // Supplier View Component
 function SupplierView() {
-  const supplierStats = [
-    {
-      title: 'Licitaciones Abiertas',
-      value: '12',
-      change: '+3',
-      changeType: 'positive',
-      icon: Target,
-      description: 'Available for bidding'
-    },
-    {
-      title: 'Mis Propuestas',
-      value: '8',
-      change: '+2',
-      changeType: 'positive',
-      icon: FileCheck,
-      description: 'Submitted proposals'
-    },
-    {
-      title: 'Propuestas Ganadas',
-      value: '3',
-      change: '+1',
-      changeType: 'positive',
-      icon: Award,
-      description: 'Won contracts'
-    },
-    {
-      title: 'Facturas Pendientes',
-      value: '$12.8K',
-      change: '-$2.1K',
-      changeType: 'negative',
-      icon: Receipt,
-      description: 'vs last month'
-    }
-  ]
-
-  const upcomingDeadlines = [
-    {
-      id: '1',
-      project: '25 Hours Hotel FF&E',
-      type: 'RFP Submission',
-      deadline: '2024-01-15',
-      daysLeft: 3,
-      priority: 'high'
-    },
-    {
-      id: '2',
-      project: 'Office Complex Renovation',
-      type: 'Proposal Review',
-      deadline: '2024-01-20',
-      daysLeft: 8,
-      priority: 'medium'
-    },
-    {
-      id: '3',
-      project: 'Shopping Mall FF&E',
-      type: 'Contract Signing',
-      deadline: '2024-01-25',
-      daysLeft: 13,
-      priority: 'low'
-    },
-    {
-      id: '4',
-      project: 'Hotel Renovation',
-      type: 'Document Submission',
-      deadline: '2024-01-30',
-      daysLeft: 18,
-      priority: 'low'
-    }
-  ]
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800'
-      case 'medium': return 'bg-yellow-100 text-yellow-800'
-      case 'low': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getDaysLeftColor = (days: number) => {
-    if (days <= 3) return 'text-red-600'
-    if (days <= 7) return 'text-yellow-600'
-    return 'text-green-600'
-  }
-
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard de Proveedor</h1>
-          <p className="text-gray-600 mt-1">Bienvenido de vuelta a tu panel de proveedor</p>
-        </div>
-        <div className="flex space-x-3">
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Ver Licitaciones
-          </Button>
-          <Button className="bg-navy-600 hover:bg-navy-700">
-            <FileCheck className="h-4 w-4 mr-2" />
-            Nueva Propuesta
-          </Button>
-        </div>
-      </div>
-
-      {/* Supplier Stats Grid */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {supplierStats.map((stat, index) => {
-          const Icon = stat.icon
-          return (
-            <Card key={index} className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-navy-50 flex items-center justify-center">
-                    <Icon className="h-6 w-6 text-navy-600" />
-                  </div>
-                </div>
-                <div className="flex items-center mt-4">
-                  {stat.changeType === 'positive' ? (
-                    <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={`text-sm font-medium ml-1 ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.change}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Deadlines */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Próximos Deadlines</CardTitle>
-                <CardDescription>Fechas importantes a considerar</CardDescription>
-              </div>
-              <Button variant="outline" size="sm">Ver Calendario</Button>
-            </div>
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Licitaciones Abiertas</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingDeadlines.map((deadline) => (
-                <div key={deadline.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-medium text-gray-900">{deadline.project}</h3>
-                      <Badge className={getPriorityColor(deadline.priority)}>
-                        {deadline.priority}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                      <span>{deadline.type}</span>
-                      <span>Fecha: {deadline.deadline}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className={`text-sm font-medium ${getDaysLeftColor(deadline.daysLeft)}`}>
-                        {deadline.daysLeft} días restantes
-                      </span>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Ver Detalles
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <div className="text-2xl font-bold">8</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+3</span> nuevas esta semana
+            </p>
           </CardContent>
         </Card>
 
-        {/* Quick Actions & Notifications */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>Acciones Rápidas</CardTitle>
-              <CardDescription>Acceso directo a funciones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  <Target className="h-4 w-4 mr-2" />
-                  Ver Licitaciones
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Mis Propuestas
-                </Button>
-                <Button variant="outline" className="h-4 w-4 mr-2">
-                  <Receipt className="h-4 w-4 mr-2" />
-                  Mis Facturas
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Calendario
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Mis Propuestas</CardTitle>
+            <FileCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">15</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+2</span> enviadas este mes
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Notifications */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>Notificaciones</CardTitle>
-              <CardDescription>Alertas importantes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-red-900">Deadline próximo</p>
-                    <p className="text-xs text-red-700">RFP para 25 Hours Hotel vence en 3 días</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Propuesta aprobada</p>
-                    <p className="text-xs text-blue-700">Tu propuesta para Office Complex fue aceptada</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                  <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-green-900">Pago recibido</p>
-                    <p className="text-xs text-green-700">Factura #INV-2024-001 pagada</p>
-                  </div>
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Propuestas Ganadas</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600">+1</span> este mes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Facturas Pendientes</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">7</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-yellow-600">$12,450</span> por cobrar
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Upcoming Deadlines */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle>Próximos Deadlines</CardTitle>
+          <CardDescription>Fechas importantes para tus propuestas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <div>
+                  <p className="font-medium text-yellow-800">RFP - Servicios de Limpieza</p>
+                  <p className="text-sm text-yellow-700">Vence en 2 días</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <Button size="sm" variant="outline" className="border-yellow-300 text-yellow-700">
+                Ver Detalles
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-blue-800">Concurso - Equipos de Oficina</p>
+                  <p className="text-sm text-blue-700">Vence en 5 días</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="border-blue-300 text-blue-700">
+                Ver Detalles
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-800">Propuesta Aprobada</p>
+                  <p className="text-sm text-green-700">Servicios de IT - Aprobada</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700">
+                Ver Detalles
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifications */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle>Notificaciones</CardTitle>
+          <CardDescription>Mantente al día con las últimas novedades</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div className="h-2 w-2 bg-blue-500 rounded-full mt-2"></div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Nueva licitación disponible</p>
+                <p className="text-xs text-gray-600">Se ha publicado una nueva licitación para servicios de mantenimiento</p>
+                <p className="text-xs text-gray-500 mt-1">Hace 1 hora</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div className="h-2 w-2 bg-green-500 rounded-full mt-2"></div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Propuesta evaluada</p>
+                <p className="text-xs text-gray-600">Tu propuesta para el proyecto de construcción ha sido evaluada</p>
+                <p className="text-xs text-gray-500 mt-1">Hace 3 horas</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div className="h-2 w-2 bg-yellow-500 rounded-full mt-2"></div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Recordatorio de deadline</p>
+                <p className="text-xs text-gray-600">No olvides enviar tu propuesta para el RFP de tecnología</p>
+                <p className="text-xs text-gray-500 mt-1">Hace 5 horas</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 // Main Dashboard Component
 export default function DashboardPage() {
+  const { user, isAuthenticated, loading } = useAuth()
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600 mx-auto mb-4"></div>
+          <p className="text-navy-600">Cargando dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="text-center py-12">
+        <div className="max-w-md mx-auto">
+          <div className="h-16 w-16 rounded-full bg-navy-100 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-8 w-8 text-navy-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Requerido</h2>
+          <p className="text-gray-600 mb-6">Debes iniciar sesión para acceder al dashboard</p>
+          <Button onClick={() => window.location.href = '/login'}>
+            Ir al Login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Determine role from user metadata or default to supplier
+  const userRole = user?.user_metadata?.role || 'supplier'
+
   return (
     <div>
-      {/* Role Toggle - Temporary for development */}
-      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      {/* Welcome Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Bienvenido, {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+        </h1>
+        <p className="text-gray-600 mt-2">
+          {userRole === 'admin' ? 'Panel de Administración' : 'Panel de Proveedor'}
+        </p>
+      </div>
+
+      {/* Role Indicator */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium text-yellow-800">🔧 Modo de Desarrollo</h3>
-            <p className="text-xs text-yellow-700 mt-1">
-              Cambia TEMP_ROLE en el código para ver diferentes vistas. 
-              Actual: <strong>{TEMP_ROLE}</strong>
+            <h3 className="text-sm font-medium text-blue-800">👤 Rol de Usuario</h3>
+            <p className="text-xs text-blue-700 mt-1">
+              Tu rol actual: <strong>{userRole === 'admin' ? 'Administrador' : 'Proveedor'}</strong>
             </p>
           </div>
-          <div className="text-xs text-yellow-600">
-            <p>admin → AdminView</p>
-            <p>supplier → SupplierView</p>
-          </div>
+          <Badge variant={userRole === 'admin' ? 'default' : 'secondary'}>
+            {userRole === 'admin' ? 'Admin' : 'Supplier'}
+          </Badge>
         </div>
       </div>
 
       {/* Render appropriate view based on role */}
-      {TEMP_ROLE === 'admin' ? <AdminView /> : <SupplierView />}
+      {userRole === 'admin' ? <AdminView /> : <SupplierView />}
     </div>
   )
 }
