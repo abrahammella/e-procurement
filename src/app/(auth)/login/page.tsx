@@ -1,8 +1,27 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { SupabaseLoginForm } from '@/components/auth/SupabaseLoginForm'
+import { useToast } from '@/hooks/useToast'
+import { CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+
+  useEffect(() => {
+    // Check for logout success message
+    const message = searchParams.get('message')
+    if (message === 'logout_success') {
+      toast({
+        variant: 'success',
+        title: 'Sesión cerrada exitosamente',
+        description: 'Has cerrado sesión correctamente. ¡Hasta pronto!',
+      })
+    }
+  }, [searchParams, toast])
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Login Form */}
@@ -17,7 +36,7 @@ export default function LoginPage() {
           <div className="absolute top-16 left-16 w-40 h-40 border-2 border-white/30 rounded-2xl transform rotate-12 animate-float"></div>
           <div className="absolute top-40 right-24 w-32 h-32 border-2 border-white/30 rounded-full animate-float delay-1000"></div>
           <div className="absolute bottom-24 left-20 w-36 h-36 border-2 border-white/30 transform rotate-45 animate-float delay-500"></div>
-          <div className="absolute bottom-40 right-40 w-28 h-28 border-2 border-white/30 rounded-2xl animate-float delay-1500"></div>
+          <div className="absolute bottom-40 right-40 w-28 h-28 border-2 border-white/30 rounded-full animate-float delay-1500"></div>
         </div>
 
         {/* Hero content */}

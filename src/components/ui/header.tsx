@@ -14,15 +14,21 @@ import {
   Menu,
   Building2,
   Clock,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export function Header() {
   const pathname = usePathname()
-  const { user, signOut, isAuthenticated } = useAuth()
+  const { user, profile, signOut, isAuthenticated, userRole } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
+  const router = useRouter()
 
   // Generate breadcrumbs based on current path
   const generateBreadcrumbs = (path: string) => {
@@ -38,16 +44,40 @@ export function Header() {
   const breadcrumbs = generateBreadcrumbs(pathname)
 
   const handleSignOut = async () => {
-    const success = await signOut()
-    if (success) {
-      // Redirect will be handled by middleware
-      window.location.href = '/login'
+    setIsLoggingOut(true)
+    setLogoutError(null)
+    
+    try {
+      const success = await signOut()
+      
+      if (success) {
+        // Show success feedback
+        setShowUserMenu(false)
+        
+        // Redirect to login with success message
+        router.push('/login?message=logout_success')
+      } else {
+        setLogoutError('Error al cerrar sesión. Intenta nuevamente.')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      setLogoutError('Error inesperado al cerrar sesión.')
+    } finally {
+      setIsLoggingOut(false)
     }
   }
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu)
+    // Clear any previous errors when opening menu
+    if (!showUserMenu) {
+      setLogoutError(null)
+    }
   }
+
+  // Get display name and role
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuario'
+  const displayRole = userRole === 'admin' ? 'Administrador' : 'Proveedor'
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
@@ -111,7 +141,7 @@ export function Header() {
           </Button>
 
           {/* User Menu */}
-          {isAuthenticated && user ? (
+          {isAuthenticated && user && profile ? (
             <div className="relative">
               <Button
                 variant="ghost"
@@ -123,10 +153,10 @@ export function Header() {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-medium text-gray-900">
-                    {user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario'}
+                    {displayName}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {user.user_metadata?.role === 'admin' ? 'Administrador' : 'Proveedor'}
+                    {displayRole}
                   </p>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
@@ -135,13 +165,20 @@ export function Header() {
               {/* Dropdown Menu */}
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                  {/* User Info Header */}
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {user.user_metadata?.full_name || 'Usuario'}
+                      {displayName}
                     </p>
                     <p className="text-sm text-gray-500">{user.email}</p>
+                    <div className="mt-1">
+                      <Badge variant={userRole === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                        {displayRole}
+                      </Badge>
+                    </div>
                   </div>
                   
+                  {/* Menu Items */}
                   <a
                     href="/profile"
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
@@ -158,14 +195,37 @@ export function Header() {
                     Configuración
                   </a>
                   
+                  {/* Logout Error Alert */}
+                  {logoutError && (
+                    <div className="px-4 py-2">
+                      <Alert variant="destructive" className="py-2">
+                        <AlertTriangle className="h-3 w-3" />
+                        <AlertDescription className="text-xs ml-2">
+                          {logoutError}
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+                  
                   <div className="border-t border-gray-100 my-1"></div>
                   
+                  {/* Logout Button */}
                   <button
                     onClick={handleSignOut}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    disabled={isLoggingOut}
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogOut className="h-4 w-4 mr-3" />
-                    Cerrar Sesión
+                    {isLoggingOut ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600 mr-3"></div>
+                        <span>Cerrando sesión...</span>
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="h-4 w-4 mr-3" />
+                        <span>Cerrar Sesión</span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}

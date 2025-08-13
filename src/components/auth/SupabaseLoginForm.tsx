@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +24,7 @@ interface ValidationErrors {
 
 export function SupabaseLoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<LoginData>({
     email: '',
     password: '',
@@ -39,13 +40,14 @@ export function SupabaseLoginForm() {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        // User is already logged in, redirect to dashboard
-        router.push('/dashboard')
+        // User is already logged in, redirect to dashboard or intended page
+        const redirectTo = searchParams.get('redirect') || '/dashboard'
+        router.push(redirectTo)
       }
     }
 
     checkAuth()
-  }, [router])
+  }, [router, searchParams])
 
   // Load saved email from localStorage if remember me was checked
   useEffect(() => {
@@ -141,9 +143,9 @@ export function SupabaseLoginForm() {
           // Still redirect to dashboard even if profile fetch fails
         }
 
-        // For now, redirect to dashboard (role-based routing can be implemented later)
-        // You can implement role-based routing here based on profile data
-        router.push('/dashboard')
+        // Redirect to intended page or dashboard
+        const redirectTo = searchParams.get('redirect') || '/dashboard'
+        router.push(redirectTo)
       }
     } catch (error: any) {
       console.error('Unexpected error:', error)

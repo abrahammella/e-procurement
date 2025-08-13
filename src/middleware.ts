@@ -1,72 +1,126 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+// Definir rutas por tipo
+const PUBLIC_ROUTES = ['/login', '/signup', '/signup/wizard', '/reset-password', '/forgot-password'];
+const ADMIN_ROUTES = ['/admin', '/admin/users', '/admin/settings', '/admin/reports'];
+const SUPPLIER_ROUTES = ['/supplier', '/supplier/proposals', '/supplier/invoices'];
+const SHARED_PROTECTED = ['/dashboard', '/profile', '/settings', '/tenders', '/rfp', '/proposals', '/invoices'];
 
+// Función helper para verificar si una ruta coincide con un patrón
+function startsWithAny(path: string, routes: string[]) {
+  return routes.some((r) => path === r || path.startsWith(r + '/'));
+}
+
+export async function middleware(req: NextRequest) {
+  let res = NextResponse.next({
+    request: req,
+  });
+
+  // Crear cliente Supabase para middleware
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          cookiesToSet.forEach(({ name, value, options }) => req.cookies.set(name, value));
+          res = NextResponse.next({
+            request: req,
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+            res.cookies.set(name, value, options)
+          );
         },
       },
     }
-  )
+  );
 
-  // Refresh session if expired - required for Server Components
-  // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-user-sessions
-  await supabase.auth.getUser()
+  try {
+    // Obtener sesión del usuario
+    const { data: { session } } = await supabase.auth.getSession();
+    const { pathname, searchParams } = req.nextUrl;
+    const isPublic = startsWithAny(pathname, PUBLIC_ROUTES);
 
-  // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser()
+    // Caso 1: Usuario NO autenticado
+    if (!session) {
+      if (!isPublic) {
+        // Si no es ruta pública, redirigir a login con redirect
+        const url = req.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('redirect', pathname + (req.nextUrl.search || ''));
+        return NextResponse.redirect(url);
+      }
+      // Si es ruta pública, permitir acceso
+      return res;
+    }
 
-  const { pathname } = request.nextUrl
+    // Caso 2: Usuario autenticado - determinar rol
+    let role = (session.user.app_metadata?.role as string) || null;
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/signup', '/signup/wizard', '/reset-password']
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+    // Si no hay rol en app_metadata, consultar la tabla profiles
+    if (!role) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      
+      role = profile?.role ?? 'supplier';
+    }
 
-  // If user is not authenticated and trying to access protected route
-  if (!user && !isPublicRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(url)
+    // Caso 3: Usuario autenticado intenta acceder a ruta pública
+    if (isPublic) {
+      const url = req.nextUrl.clone();
+      url.pathname = role === 'admin' ? '/dashboard' : '/dashboard';
+      return NextResponse.redirect(url);
+    }
+
+    // Caso 4: Verificar acceso a rutas por rol
+    const isAdminRoute = startsWithAny(pathname, ADMIN_ROUTES);
+    const isSupplierRoute = startsWithAny(pathname, SUPPLIER_ROUTES);
+
+    // Verificar acceso a rutas de admin
+    if (isAdminRoute && role !== 'admin') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+
+    // Verificar acceso a rutas de supplier
+    if (isSupplierRoute && role !== 'supplier') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+
+    // Si pasa todas las verificaciones, permitir acceso
+    return res;
+
+  } catch (error) {
+    console.error('Middleware error:', error);
+    
+    // En caso de error, redirigir a login para rutas protegidas
+    const { pathname } = req.nextUrl;
+    const isPublic = startsWithAny(pathname, PUBLIC_ROUTES);
+    
+    if (!isPublic) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('redirect', pathname + (req.nextUrl.search || ''));
+      return NextResponse.redirect(url);
+    }
+    
+    return res;
   }
-
-  // If user is authenticated and trying to access auth routes
-  if (user && isPublicRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
-  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};

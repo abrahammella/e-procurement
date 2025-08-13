@@ -4,9 +4,21 @@ import { useState, useEffect } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+interface UserProfile {
+  id: string
+  email: string
+  full_name: string
+  phone: string
+  country: string
+  role: 'admin' | 'supplier'
+  created_at: string
+  updated_at: string
+}
+
 interface AuthState {
   user: User | null
   session: Session | null
+  profile: UserProfile | null
   loading: boolean
   error: string | null
 }
@@ -15,9 +27,45 @@ export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     session: null,
+    profile: null,
     loading: true,
     error: null
   })
+
+  // Fetch user profile from profiles table
+  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+        return null
+      }
+
+      return profile
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error)
+      return null
+    }
+  }
+
+  // Get user role with fallback strategy
+  const getUserRole = async (user: User): Promise<string> => {
+    // First try to get role from app_metadata
+    let role = user.app_metadata?.role as string
+    
+    // If no role in app_metadata, fetch from profiles table
+    if (!role) {
+      const profile = await fetchUserProfile(user.id)
+      role = profile?.role || 'supplier'
+    }
+    
+    return role
+  }
 
   useEffect(() => {
     // Get initial session
@@ -30,12 +78,29 @@ export function useAuth() {
           return
         }
 
-        setAuthState({
-          user: session?.user ?? null,
-          session,
-          loading: false,
-          error: null
-        })
+        if (session?.user) {
+          // Get user role first
+          const role = await getUserRole(session.user)
+          
+          // Fetch user profile
+          const profile = await fetchUserProfile(session.user.id)
+          
+          setAuthState({
+            user: session.user,
+            session,
+            profile,
+            loading: false,
+            error: null
+          })
+        } else {
+          setAuthState({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            error: null
+          })
+        }
       } catch (error) {
         setAuthState(prev => ({ 
           ...prev, 
@@ -52,12 +117,29 @@ export function useAuth() {
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id)
         
-        setAuthState({
-          user: session?.user ?? null,
-          session,
-          loading: false,
-          error: null
-        })
+        if (session?.user) {
+          // Get user role first
+          const role = await getUserRole(session.user)
+          
+          // Fetch user profile on auth change
+          const profile = await fetchUserProfile(session.user.id)
+          
+          setAuthState({
+            user: session.user,
+            session,
+            profile,
+            loading: false,
+            error: null
+          })
+        } else {
+          setAuthState({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            error: null
+          })
+        }
       }
     )
 
@@ -67,6 +149,10 @@ export function useAuth() {
   const signOut = async () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true }))
+      
+      // Clear any stored data
+      localStorage.removeItem('eproc_remembered_email')
+      
       const { error } = await supabase.auth.signOut()
       
       if (error) {
@@ -74,9 +160,11 @@ export function useAuth() {
         return false
       }
 
+      // Clear auth state immediately
       setAuthState({
         user: null,
         session: null,
+        profile: null,
         loading: false,
         error: null
       })
@@ -102,12 +190,29 @@ export function useAuth() {
         return false
       }
 
-      setAuthState({
-        user: session?.user ?? null,
-        session,
-        loading: false,
-        error: null
-      })
+      if (session?.user) {
+        // Get updated user role
+        const role = await getUserRole(session.user)
+        
+        // Fetch updated profile
+        const profile = await fetchUserProfile(session.user.id)
+        
+        setAuthState({
+          user: session.user,
+          session,
+          profile,
+          loading: false,
+          error: null
+        })
+      } else {
+        setAuthState({
+          user: null,
+          session: null,
+          profile: null,
+          loading: false,
+          error: null
+        })
+      }
       
       return true
     } catch (error) {
@@ -120,12 +225,22 @@ export function useAuth() {
     }
   }
 
+  // Refresh user profile (useful for after profile updates)
+  const refreshProfile = async () => {
+    if (authState.user) {
+      const profile = await fetchUserProfile(authState.user.id)
+      setAuthState(prev => ({ ...prev, profile }))
+    }
+  }
+
   return {
     ...authState,
     signOut,
     refreshSession,
+    refreshProfile,
     isAuthenticated: !!authState.user,
-    isAdmin: authState.user?.user_metadata?.role === 'admin',
-    isSupplier: authState.user?.user_metadata?.role === 'supplier'
+    isAdmin: authState.profile?.role === 'admin',
+    isSupplier: authState.profile?.role === 'supplier',
+    userRole: authState.profile?.role || null
   }
 }

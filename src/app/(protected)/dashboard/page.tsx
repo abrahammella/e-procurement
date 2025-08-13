@@ -332,7 +332,7 @@ function SupplierView() {
 
 // Main Dashboard Component
 export default function DashboardPage() {
-  const { user, isAuthenticated, loading } = useAuth()
+  const { user, profile, isAuthenticated, loading, userRole } = useAuth()
 
   // Show loading state while checking authentication
   if (loading) {
@@ -364,15 +364,24 @@ export default function DashboardPage() {
     )
   }
 
-  // Determine role from user metadata or default to supplier
-  const userRole = user?.user_metadata?.role || 'supplier'
+  // Show profile loading if profile not yet loaded
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600 mx-auto mb-4"></div>
+          <p className="text-navy-600">Cargando perfil de usuario...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
       {/* Welcome Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
-          Bienvenido, {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
+          Bienvenido, {profile.full_name || user?.email?.split('@')[0] || 'Usuario'}
         </h1>
         <p className="text-gray-600 mt-2">
           {userRole === 'admin' ? 'Panel de Administración' : 'Panel de Proveedor'}
