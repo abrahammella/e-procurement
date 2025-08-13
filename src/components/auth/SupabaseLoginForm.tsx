@@ -38,8 +38,9 @@ export function SupabaseLoginForm() {
   // Check if user is already authenticated
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
+      // Use getUser() instead of getSession() for better security
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (user && !error) {
         // User is already logged in, redirect to dashboard or intended page
         const redirectTo = searchParams.get('redirect') || '/dashboard'
         router.push(redirectTo)

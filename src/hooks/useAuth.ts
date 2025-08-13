@@ -71,23 +71,24 @@ export function useAuth() {
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Use getUser() instead of getSession() for better security
+        const { data: { user }, error } = await supabase.auth.getUser()
         
         if (error) {
           setAuthState(prev => ({ ...prev, error: error.message, loading: false }))
           return
         }
 
-        if (session?.user) {
+        if (user) {
           // Get user role first
-          const role = await getUserRole(session.user)
+          const role = await getUserRole(user)
           
           // Fetch user profile
-          const profile = await fetchUserProfile(session.user.id)
+          const profile = await fetchUserProfile(user.id)
           
           setAuthState({
-            user: session.user,
-            session,
+            user: user,
+            session: null, // We'll get session separately if needed
             profile,
             loading: false,
             error: null
@@ -183,23 +184,25 @@ export function useAuth() {
   const refreshSession = async () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true }))
-      const { data: { session }, error } = await supabase.auth.refreshSession()
+      
+      // Use getUser() instead of refreshSession() for better security
+      const { data: { user }, error } = await supabase.auth.getUser()
       
       if (error) {
         setAuthState(prev => ({ ...prev, error: error.message, loading: false }))
         return false
       }
 
-      if (session?.user) {
+      if (user) {
         // Get updated user role
-        const role = await getUserRole(session.user)
+        const role = await getUserRole(user)
         
         // Fetch updated profile
-        const profile = await fetchUserProfile(session.user.id)
+        const profile = await fetchUserProfile(user.id)
         
         setAuthState({
-          user: session.user,
-          session,
+          user: user,
+          session: null, // We'll get session separately if needed
           profile,
           loading: false,
           error: null
@@ -233,11 +236,24 @@ export function useAuth() {
     }
   }
 
+  // Get session when needed for specific operations
+  const getSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (error) throw error
+      return session
+    } catch (error) {
+      console.error('Error getting session:', error)
+      return null
+    }
+  }
+
   return {
     ...authState,
     signOut,
     refreshSession,
     refreshProfile,
+    getSession,
     isAuthenticated: !!authState.user,
     isAdmin: authState.profile?.role === 'admin',
     isSupplier: authState.profile?.role === 'supplier',

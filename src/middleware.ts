@@ -41,13 +41,14 @@ export async function middleware(req: NextRequest) {
   );
 
   try {
-    // Obtener sesión del usuario
-    const { data: { session } } = await supabase.auth.getSession();
     const { pathname, searchParams } = req.nextUrl;
     const isPublic = startsWithAny(pathname, PUBLIC_ROUTES);
 
-    // Caso 1: Usuario NO autenticado
-    if (!session) {
+    // Obtener usuario autenticado de forma segura
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    // Si hay error al obtener el usuario o no hay usuario, tratar como no autenticado
+    if (userError || !user) {
       if (!isPublic) {
         // Si no es ruta pública, redirigir a login con redirect
         const url = req.nextUrl.clone();
@@ -60,14 +61,14 @@ export async function middleware(req: NextRequest) {
     }
 
     // Caso 2: Usuario autenticado - determinar rol
-    let role = (session.user.app_metadata?.role as string) || null;
+    let role = (user.app_metadata?.role as string) || null;
 
     // Si no hay rol en app_metadata, consultar la tabla profiles
     if (!role) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .maybeSingle();
       
       role = profile?.role ?? 'supplier';
