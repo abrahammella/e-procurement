@@ -74,6 +74,8 @@ import {
 } from '@/components/ui/popover'
 import { useToast } from '@/components/ui/use-toast'
 import { Progress } from '@/components/ui/progress'
+import ActionButtons from './action-buttons'
+import SimpleRfpIndicator from './simple-rfp-indicator'
 
 // Zod schema para validación del formulario
 const tenderFormSchema = z.object({
@@ -120,6 +122,8 @@ interface TendersData {
 interface TendersClientProps {
   initialData: TendersData
   isAdmin: boolean
+  isSupplier: boolean
+  supplierId: string | null
 }
 
 const statusOptions = [
@@ -137,7 +141,7 @@ const statusColors = {
   adjudicado: 'bg-blue-100 text-blue-800',
 }
 
-export default function TendersClient({ initialData, isAdmin }: TendersClientProps) {
+export default function TendersClient({ initialData, isAdmin, isSupplier, supplierId }: TendersClientProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [data, setData] = useState<TendersData>(initialData)
@@ -153,6 +157,7 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
     open: boolean
   }>({ tender: null, newStatus: null, open: false })
   const [viewMode, setViewMode] = useState(false)
+  const [proposalsByTender, setProposalsByTender] = useState<Record<string, boolean>>({})
   
   // Filtros
   const [statusFilter, setStatusFilter] = useState('all')
@@ -190,6 +195,7 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
       if (result.ok) {
         setData(result.data)
       } else {
+        console.error('Error loading tenders:', result)
         toast({
           title: 'Error',
           description: result.error || 'Error al cargar licitaciones',
@@ -207,10 +213,34 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
     }
   }
 
+  // Cargar propuestas existentes del supplier si es supplier
+  async function loadSupplierProposals() {
+    if (!isSupplier || !supplierId) return
+    
+    try {
+      const response = await fetch('/api/proposals')
+      const result = await response.json()
+      
+      if (result.ok) {
+        const proposals = result.data.items
+        const proposalsMap: Record<string, boolean> = {}
+        proposals.forEach((proposal: any) => {
+          proposalsMap[proposal.tender_id] = true
+        })
+        setProposalsByTender(proposalsMap)
+      }
+    } catch (error) {
+      console.error('Error loading supplier proposals:', error)
+    }
+  }
+
   // Recargar cuando cambien los filtros
   useEffect(() => {
     loadTenders()
-  }, [statusFilter, searchQuery, offset])
+    if (isSupplier) {
+      loadSupplierProposals()
+    }
+  }, [statusFilter, searchQuery, offset, isSupplier])
 
   // Formatear moneda
   const formatCurrency = (amount: number) => {
@@ -242,7 +272,14 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
       })
     } else {
       setEditingTender(null)
-      form.reset()
+      form.reset({
+        code: '',
+        title: '',
+        description: '',
+        budget_rd: '' as any,
+        delivery_max_months: '' as any,
+        deadline: undefined,
+      })
     }
     setSelectedFile(null)
     setUploadProgress(0)
@@ -483,6 +520,7 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
       open: true
     })
   }
+
 
   return (
     <div className="space-y-6">
@@ -807,20 +845,20 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
               <TableHead>Presupuesto</TableHead>
               <TableHead>Plazo</TableHead>
               <TableHead>Cierre</TableHead>
-              {isAdmin && <TableHead className="text-right">Acciones</TableHead>}
+              {(isAdmin || isSupplier) && <TableHead className="text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && !data.items.length ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center">
+                <TableCell colSpan={(isAdmin || isSupplier) ? 7 : 6} className="text-center">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
                   Cargando...
                 </TableCell>
               </TableRow>
             ) : data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center">
+                <TableCell colSpan={(isAdmin || isSupplier) ? 7 : 6} className="text-center">
                   No se encontraron licitaciones
                 </TableCell>
               </TableRow>
@@ -829,9 +867,7 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
                 <TableRow key={tender.id}>
                   <TableCell className="font-mono text-sm">
                     {tender.code}
-                    {tender.rfp_path && (
-                      <FileText className="inline ml-2 h-4 w-4 text-muted-foreground" />
-                    )}
+                    <SimpleRfpIndicator hasRfp={!!tender.rfp_path} />
                   </TableCell>
                   <TableCell>{tender.title}</TableCell>
                   <TableCell>
@@ -910,6 +946,16 @@ export default function TendersClient({ initialData, isAdmin }: TendersClientPro
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    </TableCell>
+                  )}
+                  {isSupplier && !isAdmin && (
+                    <TableCell className="text-right">
+                      <ActionButtons 
+                        tenderId={tender.id}
+                        status={tender.status}
+                        deadline={tender.deadline}
+                        hasProposal={proposalsByTender[tender.id] || false}
+                      />
                     </TableCell>
                   )}
                 </TableRow>

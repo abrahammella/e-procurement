@@ -56,12 +56,18 @@ export default async function TendersPage() {
   const { data: { user } } = await createServerSupabase().auth.getUser()
   const { data: profile } = await createServerSupabase()
     .from('profiles')
-    .select('role')
+    .select('role, supplier_id')
     .eq('id', user?.id)
     .single()
 
   const isAdmin = profile?.role === 'admin'
+  const isSupplier = profile?.role === 'supplier'
   const initialData = await getTenders()
 
-  return <TendersClient initialData={initialData} isAdmin={isAdmin} />
+  return <TendersClient 
+    initialData={initialData} 
+    isAdmin={isAdmin} 
+    isSupplier={isSupplier}
+    supplierId={profile?.supplier_id || null}
+  />
 }
