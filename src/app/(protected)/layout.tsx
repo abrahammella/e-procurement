@@ -1,26 +1,39 @@
 'use client'
 
-import { useAuth } from '@/hooks/useAuth'
 import { DashboardShell } from '@/components/layout/DashboardShell'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, loading } = useAuth()
-  const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push('/login')
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setIsAuthenticated(!!user)
+      } catch (error) {
+        console.error('Error checking authentication:', error)
+        setIsAuthenticated(false)
+      }
     }
-  }, [isAuthenticated, loading, router])
+
+    checkAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session?.user)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   // Show loading state while checking authentication
-  if (loading) {
+  if (isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
@@ -31,9 +44,17 @@ export default function ProtectedLayout({
     )
   }
 
-  // Don't render protected content if not authenticated
+  // If not authenticated, let middleware handle the redirect
+  // Don't redirect from here to avoid conflicts
   if (!isAuthenticated) {
-    return null
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-600 mx-auto mb-4"></div>
+          <p className="text-navy-600">Redirigiendo...</p>
+        </div>
+      </div>
+    )
   }
 
   return <DashboardShell>{children}</DashboardShell>

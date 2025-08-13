@@ -6,7 +6,7 @@ import { createMiddlewareSupabase } from '@/lib/supabase-server';
 const PUBLIC_ROUTES = ['/login', '/signup', '/signup/wizard', '/reset-password', '/forgot-password'];
 const ADMIN_ROUTES = ['/admin'];
 const SUPPLIER_ROUTES = ['/supplier'];
-const SHARED_PROTECTED = ['/dashboard', '/profile', '/settings', '/tenders', '/rfp', '/proposals', '/invoices'];
+const SHARED_PROTECTED = ['/dashboard', '/profile', '/settings', '/tenders', '/tenders-test', '/tenders-test-simple', '/rfp', '/proposals', '/invoices'];
 
 // Función helper para verificar si una ruta coincide con un patrón
 function isPublicRoute(path: string): boolean {

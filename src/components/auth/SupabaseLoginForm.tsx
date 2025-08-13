@@ -134,13 +134,50 @@ export function SupabaseLoginForm() {
         const redirectParam = searchParams.get('redirect')
         console.log('🔍 Redirect parameter:', redirectParam)
         
-        // Use the hook to determine the correct redirect path
-        const redirectPath = await handlePostLoginRedirect(redirectParam || undefined)
+        // Get user profile to determine role-based redirect
+        let redirectPath = '/dashboard' // default
+        
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authData.user.id)
+            .single()
+          
+          console.log('👤 User profile for redirect:', profile)
+          
+          if (redirectParam) {
+            // Check if user has permission for the redirect path
+            if (redirectParam.startsWith('/admin') && profile?.role === 'admin') {
+              redirectPath = redirectParam
+            } else if (redirectParam.startsWith('/supplier') && profile?.role === 'supplier') {
+              redirectPath = redirectParam
+            } else if (!redirectParam.startsWith('/admin') && !redirectParam.startsWith('/supplier')) {
+              redirectPath = redirectParam
+            }
+            // Otherwise use default dashboard
+          }
+        } catch (profileError) {
+          console.error('❌ Error fetching profile for redirect:', profileError)
+          // Use default dashboard redirect
+        }
+        
         console.log('🔄 Final redirect path:', redirectPath)
+        
+        // Save email if remember me is checked
+        if (data.rememberMe) {
+          localStorage.setItem('eproc_remembered_email', data.email.trim())
+        } else {
+          localStorage.removeItem('eproc_remembered_email')
+        }
         
         // Redirect to the determined path
         console.log('🚀 Redirecting to:', redirectPath)
-        router.push(redirectPath)
+        
+        // Use window.location.href for more reliable redirect after login
+        setTimeout(() => {
+          window.location.href = redirectPath
+        }, 100)
         
       } else {
         console.error('❌ No user data in auth response')

@@ -1,8 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 // Cliente del servidor (para Server Components y API routes)
 export function createServerSupabase() {
@@ -46,5 +48,15 @@ export function createMiddlewareSupabase(request?: Request) {
         // No-op para middleware - no podemos establecer cookies aquí
       },
     },
+  })
+}
+
+// Cliente con service role key (para operaciones administrativas y storage)
+export function createServiceRoleSupabase() {
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   })
 }
