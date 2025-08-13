@@ -10,7 +10,7 @@ interface AuthShellProps {
 export function AuthShell({ 
   children, 
   title = "E-Procurement", 
-  subtitle = "Gestiona concursos, RFPs y proveedores" 
+  subtitle = "Gestiona Licitacións, RFPs y proveedores" 
 }: AuthShellProps) {
   return (
     <div className="min-h-screen flex">

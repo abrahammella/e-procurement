@@ -56,7 +56,7 @@ export default function LoginPage() {
 
             {/* Subtitle */}
             <p className="text-2xl leading-relaxed opacity-95 mb-8">
-              Gestiona concursos, RFPs y proveedores
+              Gestiona licitaciones, RFPs y proveedores
             </p>
 
             {/* Features */}

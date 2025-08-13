@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSignedUrl } from '@/lib/storage'
 import { createServerSupabase } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Obtener datos de la request
     const body = await request.json()
-    const { path, expiresInSec } = body
+    const { path, expiresInSec = 600 } = body
 
     if (!path) {
       return NextResponse.json(
@@ -26,12 +25,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generar URL firmada
-    const signedUrl = await getSignedUrl(path, expiresInSec)
+    // Generar URL firmada directamente con el cliente autenticado
+    const { data, error } = await supabase.storage
+      .from('docs')
+      .createSignedUrl(path, expiresInSec)
+
+    if (error) {
+      console.error('Error creando signed URL:', error)
+      return NextResponse.json(
+        { error: `Error al crear URL: ${error.message}` },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      signedUrl
+      signedUrl: data.signedUrl
     })
 
   } catch (error) {

@@ -39,7 +39,8 @@ const TenderUpdateSchema = z.object({
     }
     return date.toISOString()
   }).optional(),
-  status: z.enum(['abierto', 'en_evaluacion', 'cerrado', 'adjudicado']).optional()
+  status: z.enum(['abierto', 'en_evaluacion', 'cerrado', 'adjudicado']).optional(),
+  rfp_path: z.string().optional() // Añadir soporte para path del archivo RFP
 })
 
 const TenderDeleteSchema = z.object({
@@ -111,7 +112,8 @@ export async function GET(request: NextRequest) {
         delivery_max_months,
         deadline,
         created_at,
-        created_by
+        created_by,
+        rfp_path
       `, { count: 'exact' })
 
     // Aplicar filtros

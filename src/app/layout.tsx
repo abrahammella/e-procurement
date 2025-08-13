@@ -11,7 +11,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: 'E-Procurement Platform',
-  description: 'Plataforma de gestión de concursos, RFPs y proveedores',
+  description: 'Plataforma de gestión de Licitaciones, RFPs y proveedores',
 }
 
 export default function RootLayout({
