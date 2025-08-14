@@ -6,7 +6,7 @@ interface Tender {
   code: string
   title: string
   description?: string
-  status: 'abierto' | 'en_evaluacion' | 'cerrado' | 'adjudicado'
+  status: 'pendiente_aprobacion' | 'abierta' | 'cerrada' | 'evaluacion' | 'adjudicada' | 'cancelada'
   budget_rd: number
   delivery_max_months: number
   deadline: string
@@ -20,10 +20,10 @@ interface TendersData {
   total: number
 }
 
-async function getTenders(): Promise<TendersData> {
+async function getTenders(userRole?: string): Promise<TendersData> {
   const supabase = createServerSupabase()
   
-  const { data: items, error, count } = await supabase
+  let query = supabase
     .from('tenders')
     .select(`
       id,
@@ -38,6 +38,13 @@ async function getTenders(): Promise<TendersData> {
       created_by,
       rfp_path
     `, { count: 'exact' })
+
+  // Aplicar filtros basados en el rol
+  if (userRole === 'supplier') {
+    query = query.eq('status', 'abierta')
+  }
+
+  const { data: items, error, count } = await query
     .order('created_at', { ascending: false })
     .limit(10)
 
@@ -62,7 +69,7 @@ export default async function TendersPage() {
 
   const isAdmin = profile?.role === 'admin'
   const isSupplier = profile?.role === 'supplier'
-  const initialData = await getTenders()
+  const initialData = await getTenders(profile?.role)
 
   return <TendersClient 
     initialData={initialData} 

@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { NotificationBell } from '@/components/ui/notification-bell'
 
 export function Header() {
   const pathname = usePathname()
@@ -133,12 +134,7 @@ export function Header() {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="h-5 w-5 text-gray-600" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
-              3
-            </Badge>
-          </Button>
+          <NotificationBell />
 
           {/* User Menu */}
           {isAuthenticated && user && profile ? (

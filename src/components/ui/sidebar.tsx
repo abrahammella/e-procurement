@@ -14,7 +14,10 @@ import {
   Settings,
   Menu,
   ChevronRight,
-  Building2
+  Building2,
+  CheckCircle,
+  FolderOpen,
+  Bell
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -24,10 +27,13 @@ interface SidebarProps {
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Tenders', href: '/tenders', icon: FileText },
-  { name: 'RFP', href: '/rfp', icon: ClipboardList },
+  { name: 'RFP', href: '/rfp', icon: FolderOpen },
   { name: 'Suppliers', href: '/suppliers', icon: Users },
   { name: 'Proposals', href: '/proposals', icon: FileCheck },
+  { name: 'Approvals', href: '/approvals', icon: CheckCircle },
+  { name: 'Service Orders', href: '/service-orders', icon: ClipboardList },
   { name: 'Invoices', href: '/invoices', icon: Receipt },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

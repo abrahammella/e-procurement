@@ -14,7 +14,7 @@ interface Tender {
   code: string
   title: string
   description: string | null
-  status: 'abierto' | 'en_evaluacion' | 'cerrado' | 'adjudicado'
+  status: 'pendiente_aprobacion' | 'abierta' | 'cerrada' | 'evaluacion' | 'adjudicada' | 'cancelada'
   budget_rd: number
   delivery_max_months: number
   deadline: string
@@ -30,17 +30,21 @@ interface TenderDetailClientProps {
 }
 
 const statusColors = {
-  abierto: 'bg-green-100 text-green-800',
-  en_evaluacion: 'bg-amber-100 text-amber-800',
-  cerrado: 'bg-gray-100 text-gray-800',
-  adjudicado: 'bg-blue-100 text-blue-800',
+  pendiente_aprobacion: 'bg-yellow-100 text-yellow-800',
+  abierta: 'bg-green-100 text-green-800',
+  cerrada: 'bg-gray-100 text-gray-800',
+  evaluacion: 'bg-amber-100 text-amber-800',
+  adjudicada: 'bg-blue-100 text-blue-800',
+  cancelada: 'bg-red-100 text-red-800',
 }
 
 const statusLabels = {
-  abierto: 'Abierto',
-  en_evaluacion: 'En Evaluación',
-  cerrado: 'Cerrado',
-  adjudicado: 'Adjudicado',
+  pendiente_aprobacion: 'Pendiente Aprobación',
+  abierta: 'Abierta',
+  cerrada: 'Cerrada',
+  evaluacion: 'En Evaluación',
+  adjudicada: 'Adjudicada',
+  cancelada: 'Cancelada',
 }
 
 // Función para formatear moneda
@@ -67,7 +71,7 @@ export default function TenderDetailClient({
   isSupplier, 
   hasExistingProposal 
 }: TenderDetailClientProps) {
-  const isOpen = tender.status === 'abierto'
+  const isOpen = tender.status === 'abierta'
   const isNotExpired = !isDeadlineExpired(tender.deadline)
   const canSubmitProposal = isSupplier && isOpen && isNotExpired && !hasExistingProposal
 

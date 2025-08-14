@@ -27,7 +27,7 @@ function ActionButtonsComponent({
   }
 
   const canSubmitProposal = () => {
-    if (status !== 'abierto') return false
+    if (status !== 'abierta') return false
     if (new Date() > new Date(deadline)) return false
     if (hasProposal) return false
     return true
@@ -35,7 +35,7 @@ function ActionButtonsComponent({
 
   const getTooltip = () => {
     if (hasProposal) return "Ya enviaste una propuesta"
-    if (status !== 'abierto') return "Licitación no disponible"
+    if (status !== 'abierta') return "Licitación no disponible"
     if (new Date() > new Date(deadline)) return "Fecha límite vencida"
     return "No disponible"
   }

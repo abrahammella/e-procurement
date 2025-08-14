@@ -15,11 +15,14 @@ const TenderCreateSchema = z.object({
     if (isNaN(date.getTime())) {
       throw new Error('Fecha de cierre inválida')
     }
-    if (date <= new Date()) {
-      throw new Error('La fecha de cierre debe ser futura')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (date < today) {
+      throw new Error('La fecha de cierre debe ser hoy o posterior')
     }
     return date.toISOString()
-  })
+  }),
+  status: z.enum(['pendiente_aprobacion', 'abierta', 'cerrada', 'evaluacion', 'adjudicada', 'cancelada']).optional().default('pendiente_aprobacion')
 })
 
 const TenderUpdateSchema = z.object({
@@ -34,12 +37,14 @@ const TenderUpdateSchema = z.object({
     if (isNaN(date.getTime())) {
       throw new Error('Fecha de cierre inválida')
     }
-    if (date <= new Date()) {
-      throw new Error('La fecha de cierre debe ser futura')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (date < today) {
+      throw new Error('La fecha de cierre debe ser hoy o posterior')
     }
     return date.toISOString()
   }).optional(),
-  status: z.enum(['abierto', 'en_evaluacion', 'cerrado', 'adjudicado']).optional(),
+  status: z.enum(['pendiente_aprobacion', 'abierta', 'cerrada', 'evaluacion', 'adjudicada', 'cancelada']).optional(),
   rfp_path: z.string().optional() // Añadir soporte para path del archivo RFP
 })
 
@@ -48,7 +53,7 @@ const TenderDeleteSchema = z.object({
 })
 
 const GetQuerySchema = z.object({
-  status: z.enum(['abierto', 'en_evaluacion', 'cerrado', 'adjudicado']).optional(),
+  status: z.enum(['pendiente_aprobacion', 'abierta', 'cerrada', 'evaluacion', 'adjudicada', 'cancelada']).optional(),
   q: z.string().optional(),
   limit: z.string().transform((val) => Math.min(Math.max(parseInt(val) || 50, 1), 100)).optional(),
   offset: z.string().transform((val) => Math.max(parseInt(val) || 0, 0)).optional(),
@@ -94,6 +99,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const { profile } = authResult
+
     // Parsear y validar query parameters
     const url = new URL(request.url)
     const queryParams = Object.fromEntries(url.searchParams.entries())
@@ -116,9 +123,15 @@ export async function GET(request: NextRequest) {
         rfp_path
       `, { count: 'exact' })
 
-    // Aplicar filtros
-    if (validatedQuery.status) {
-      query = query.eq('status', validatedQuery.status)
+    // Aplicar filtros basados en el rol
+    if (profile.role === 'supplier') {
+      // Los suppliers solo pueden ver licitaciones abiertas
+      query = query.eq('status', 'abierta')
+    } else {
+      // Admins y comité pueden ver todas las licitaciones
+      if (validatedQuery.status) {
+        query = query.eq('status', validatedQuery.status)
+      }
     }
 
     if (validatedQuery.q) {

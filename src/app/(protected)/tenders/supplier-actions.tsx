@@ -25,7 +25,7 @@ export default function SupplierActions({
   }, [router, tenderId])
 
   const canSubmitProposal = useCallback(() => {
-    if (status !== 'abierto') return false
+    if (status !== 'abierta') return false
     if (new Date() > new Date(deadline)) return false
     if (hasProposal) return false
     return true
@@ -33,7 +33,7 @@ export default function SupplierActions({
 
   const getTooltip = useCallback(() => {
     if (hasProposal) return "Ya enviaste una propuesta"
-    if (status !== 'abierto') return "Licitación no disponible"
+    if (status !== 'abierta') return "Licitación no disponible"
     if (new Date() > new Date(deadline)) return "Fecha límite vencida"
     return "No disponible"
   }, [hasProposal, status, deadline])

@@ -93,8 +93,12 @@ const tenderFormSchema = z.object({
   deadline: z.date({
     required_error: 'La fecha de cierre es requerida',
   }).refine(
-    (date) => date > new Date(),
-    'La fecha de cierre debe ser futura'
+    (date) => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0) // Resetear a medianoche
+      return date >= today
+    },
+    'La fecha de cierre debe ser hoy o posterior'
   ),
 })
 
@@ -105,7 +109,7 @@ interface Tender {
   code: string
   title: string
   description?: string
-  status: 'abierto' | 'en_evaluacion' | 'cerrado' | 'adjudicado'
+  status: 'pendiente_aprobacion' | 'abierta' | 'cerrada' | 'evaluacion' | 'adjudicada' | 'cancelada'
   budget_rd: number
   delivery_max_months: number
   deadline: string
@@ -128,17 +132,21 @@ interface TendersClientProps {
 
 const statusOptions = [
   { value: 'all', label: 'Todos' },
-  { value: 'abierto', label: 'Abierto' },
-  { value: 'en_evaluacion', label: 'En Evaluación' },
-  { value: 'cerrado', label: 'Cerrado' },
-  { value: 'adjudicado', label: 'Adjudicado' },
+  { value: 'pendiente_aprobacion', label: 'Pendiente Aprobación' },
+  { value: 'abierta', label: 'Abierta' },
+  { value: 'cerrada', label: 'Cerrada' },
+  { value: 'evaluacion', label: 'En Evaluación' },
+  { value: 'adjudicada', label: 'Adjudicada' },
+  { value: 'cancelada', label: 'Cancelada' },
 ]
 
 const statusColors = {
-  abierto: 'bg-green-100 text-green-800',
-  en_evaluacion: 'bg-amber-100 text-amber-800',
-  cerrado: 'bg-gray-100 text-gray-800',
-  adjudicado: 'bg-blue-100 text-blue-800',
+  pendiente_aprobacion: 'bg-yellow-100 text-yellow-800',
+  abierta: 'bg-green-100 text-green-800',
+  cerrada: 'bg-gray-100 text-gray-800',
+  evaluacion: 'bg-amber-100 text-amber-800',
+  adjudicada: 'bg-blue-100 text-blue-800',
+  cancelada: 'bg-red-100 text-red-800',
 }
 
 export default function TendersClient({ initialData, isAdmin, isSupplier, supplierId }: TendersClientProps) {
@@ -732,13 +740,17 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
-                              disabled={(date) => date <= new Date()}
+                              disabled={(date) => {
+                                const today = new Date()
+                                today.setHours(0, 0, 0, 0) // Resetear a medianoche
+                                return date < today
+                              }}
                               initialFocus
                             />
                           </PopoverContent>
                         </Popover>
                         <FormDescription>
-                          La fecha debe ser posterior al día de hoy
+                          Selecciona la fecha límite para recibir propuestas (hoy o posterior)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -907,31 +919,38 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                             Cambiar Estado
                           </DropdownMenuLabel>
 
-                          {tender.status !== 'abierto' && (
-                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'abierto')}>
+                          {tender.status !== 'abierta' && (
+                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'abierta')}>
                               <div className="mr-2 h-2 w-2 rounded-full bg-green-500"></div>
-                              Marcar como Abierto
+                              Marcar como Abierta
                             </DropdownMenuItem>
                           )}
 
-                          {tender.status !== 'en_evaluacion' && (
-                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'en_evaluacion')}>
+                          {tender.status !== 'evaluacion' && (
+                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'evaluacion')}>
                               <div className="mr-2 h-2 w-2 rounded-full bg-amber-500"></div>
                               En Evaluación
                             </DropdownMenuItem>
                           )}
 
-                          {tender.status !== 'cerrado' && (
-                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'cerrado')}>
+                          {tender.status !== 'cerrada' && (
+                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'cerrada')}>
                               <div className="mr-2 h-2 w-2 rounded-full bg-gray-500"></div>
                               Cerrar
                             </DropdownMenuItem>
                           )}
 
-                          {tender.status !== 'adjudicado' && (
-                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'adjudicado')}>
+                          {tender.status !== 'adjudicada' && (
+                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'adjudicada')}>
                               <div className="mr-2 h-2 w-2 rounded-full bg-blue-500"></div>
                               Adjudicar
+                            </DropdownMenuItem>
+                          )}
+
+                          {tender.status !== 'cancelada' && (
+                            <DropdownMenuItem onClick={() => openStatusChange(tender, 'cancelada')}>
+                              <div className="mr-2 h-2 w-2 rounded-full bg-red-500"></div>
+                              Cancelar
                             </DropdownMenuItem>
                           )}
 
