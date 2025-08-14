@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CalendarIcon, FileText, Loader2, PlusCircle, Search, Trash2, Edit, MoreHorizontal, Eye, Settings } from 'lucide-react'
+import { CalendarIcon, FileText, Loader2, PlusCircle, Search, Trash2, Edit, MoreHorizontal, Eye, Settings, RefreshCw, Users, FileCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -91,7 +91,7 @@ const tenderFormSchema = z.object({
     .transform((val) => parseInt(val))
     .refine((val) => !isNaN(val) && val > 0 && Number.isInteger(val), 'Debe ser un número entero positivo'),
   deadline: z.date({
-    required_error: 'La fecha de cierre es requerida',
+    message: 'La fecha de cierre es requerida',
   }).refine(
     (date) => {
       const today = new Date()
@@ -102,6 +102,26 @@ const tenderFormSchema = z.object({
   ),
 })
 
+// Input schema (strings)
+const tenderFormInputSchema = z.object({
+  code: z.string().trim().min(1, 'El código es requerido'),
+  title: z.string().trim().min(1, 'El título es requerido'),
+  description: z.string().optional(),
+  budget_rd: z.string().min(1, 'El presupuesto es requerido'),
+  delivery_max_months: z.string().min(1, 'Los meses de entrega son requeridos'),
+  deadline: z.date({
+    message: 'La fecha de cierre es requerida',
+  }).refine(
+    (date) => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0) // Resetear a medianoche
+      return date >= today
+    },
+    'La fecha de cierre debe ser hoy o posterior'
+  ),
+})
+
+type TenderFormInput = z.infer<typeof tenderFormInputSchema>
 type TenderFormValues = z.infer<typeof tenderFormSchema>
 
 interface Tender {
@@ -116,6 +136,7 @@ interface Tender {
   created_at: string
   created_by: string
   rfp_path?: string
+  proposal_count?: number // Para admins
 }
 
 interface TendersData {
@@ -173,14 +194,14 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
   const [limit] = useState(10)
   const [offset, setOffset] = useState(0)
 
-  const form = useForm<TenderFormValues>({
-    resolver: zodResolver(tenderFormSchema),
+  const form = useForm<TenderFormInput>({
+    resolver: zodResolver(tenderFormInputSchema),
     defaultValues: {
       code: '',
       title: '',
       description: '',
-      budget_rd: '' as any,
-      delivery_max_months: '' as any,
+      budget_rd: '',
+      delivery_max_months: '',
       deadline: undefined,
     },
   })
@@ -197,10 +218,18 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
       params.append('orderBy', 'created_at')
       params.append('orderDir', 'desc')
 
+      console.log('Loading tenders with params:', params.toString())
       const response = await fetch(`/api/tenders?${params}`)
       const result = await response.json()
 
       if (result.ok) {
+        console.log('Tenders loaded:', result.data.items.length, 'items')
+        // Log estados para debugging
+        const statusCounts = result.data.items.reduce((acc: any, tender: any) => {
+          acc[tender.status] = (acc[tender.status] || 0) + 1
+          return acc
+        }, {})
+        console.log('Status distribution:', statusCounts)
         setData(result.data)
       } else {
         console.error('Error loading tenders:', result)
@@ -211,6 +240,7 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
         })
       }
     } catch (error) {
+      console.error('Error in loadTenders:', error)
       toast({
         title: 'Error',
         description: 'Error de conexión',
@@ -223,11 +253,17 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
 
   // Cargar propuestas existentes del supplier si es supplier
   async function loadSupplierProposals() {
-    if (!isSupplier || !supplierId) return
+    if (!isSupplier || !supplierId) {
+      console.log('No loading proposals - not supplier or no supplierId:', { isSupplier, supplierId })
+      return
+    }
     
     try {
+      console.log('Loading supplier proposals...')
       const response = await fetch('/api/proposals')
       const result = await response.json()
+      
+      console.log('Proposals API response:', result)
       
       if (result.ok) {
         const proposals = result.data.items
@@ -235,6 +271,7 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
         proposals.forEach((proposal: any) => {
           proposalsMap[proposal.tender_id] = true
         })
+        console.log('Proposals map:', proposalsMap)
         setProposalsByTender(proposalsMap)
       }
     } catch (error) {
@@ -242,13 +279,45 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
     }
   }
 
-  // Recargar cuando cambien los filtros
+  // Cargar datos iniciales
   useEffect(() => {
     loadTenders()
-    if (isSupplier) {
+    if (isSupplier && supplierId) {
       loadSupplierProposals()
     }
-  }, [statusFilter, searchQuery, offset, isSupplier])
+  }, [statusFilter, searchQuery, offset, isSupplier, supplierId])
+
+  // Cargar propuestas cuando el componente se monte (supplier)
+  useEffect(() => {
+    if (isSupplier && supplierId) {
+      console.log('Initial load of supplier proposals on mount')
+      loadSupplierProposals()
+    }
+  }, [isSupplier, supplierId])
+
+  // Polling automático cada 10 segundos para admins (para ver cambios de estado)
+  useEffect(() => {
+    if (isAdmin) {
+      const interval = setInterval(() => {
+        console.log('Auto-refreshing tenders for admin...')
+        loadTenders()
+      }, 10000) // 10 segundos
+
+      return () => clearInterval(interval)
+    }
+  }, [isAdmin, loadTenders])
+
+  // Función para refresh manual
+  const handleRefresh = async () => {
+    await loadTenders()
+    if (isSupplier) {
+      await loadSupplierProposals()
+    }
+    toast({
+      title: 'Actualizado',
+      description: 'Lista de licitaciones actualizada',
+    })
+  }
 
   // Formatear moneda
   const formatCurrency = (amount: number) => {
@@ -295,13 +364,16 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
   }
 
   // Manejar envío del formulario
-  async function onSubmit(values: TenderFormValues) {
+  async function onSubmit(values: TenderFormInput) {
     try {
       setLoading(true)
       
+      // Transform values using the schema
+      const transformedValues = tenderFormSchema.parse(values)
+      
       // Preparar datos para enviar
       const payload = {
-        ...values,
+        ...transformedValues,
         deadline: values.deadline.toISOString(),
       }
 
@@ -533,7 +605,15 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Licitaciones</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight">Licitaciones</h1>
+          {isAdmin && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="h-3 w-3" />
+              <span>Auto-actualización cada 10s</span>
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground">
           Gestiona las licitaciones del sistema
         </p>
@@ -563,6 +643,31 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
             className="pl-8"
           />
         </div>
+
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
+
+        {/* Botón temporal para debugging */}
+        {isSupplier && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              console.log('Manual load supplier proposals clicked')
+              loadSupplierProposals()
+            }}
+            className="flex items-center gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            Debug Propuestas
+          </Button>
+        )}
 
         {isAdmin && (
           <Dialog 
@@ -716,39 +821,21 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Fecha de cierre</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                disabled={viewMode}
-                                className={`w-full pl-3 text-left font-normal ${
-                                  !field.value && "text-muted-foreground"
-                                }`}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP", { locale: es })
-                                ) : (
-                                  <span>Selecciona una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => {
-                                const today = new Date()
-                                today.setHours(0, 0, 0, 0) // Resetear a medianoche
-                                return date < today
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            disabled={viewMode}
+                            value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const selectedDate = new Date(e.target.value + "T00:00:00")
+                                field.onChange(selectedDate)
+                              }
+                            }}
+                            min={format(new Date(), "yyyy-MM-dd")}
+                            className="w-full"
+                          />
+                        </FormControl>
                         <FormDescription>
                           Selecciona la fecha límite para recibir propuestas (hoy o posterior)
                         </FormDescription>
@@ -913,6 +1000,19 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center">
+                            <Users className="mr-1 h-3 w-3" />
+                            Propuestas: {tender.proposal_count || 0}
+                          </DropdownMenuLabel>
+                          
+                          {(tender.proposal_count || 0) > 0 && (
+                            <DropdownMenuItem onClick={() => window.location.href = '/proposals'}>
+                              <FileCheck className="mr-2 h-4 w-4" />
+                              Ver Propuestas Recibidas
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel className="text-xs text-muted-foreground">

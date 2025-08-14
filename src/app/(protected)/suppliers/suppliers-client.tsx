@@ -137,7 +137,7 @@ export default function SuppliersClient({
   const [formData, setFormData] = useState({
     name: '',
     rnc: '',
-    status: 'activo' as const,
+    status: 'activo' as 'activo' | 'inactivo' | 'suspendido',
     certified: false,
     certifications: [] as string[],
     experience_years: 0,

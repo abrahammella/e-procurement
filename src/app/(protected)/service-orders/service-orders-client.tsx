@@ -104,7 +104,7 @@ export default function ServiceOrdersClient({
     proposal_id: '',
     po_number: '',
     pdf_url: '',
-    status: 'emitida' as const
+    status: 'emitida' as 'emitida' | 'en_firma' | 'aprobada' | 'rechazada'
   })
 
   const { toast } = useToast()

@@ -29,7 +29,13 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/components/ui/use-toast'
 
-// Zod schema para validación del formulario
+// Zod schema for form validation (string inputs)
+const proposalFormInputSchema = z.object({
+  amount_rd: z.string().min(1, 'El monto es requerido'),
+  delivery_months: z.string().min(1, 'Los meses de entrega son requeridos'),
+})
+
+// Zod schema para transformar a números
 const proposalFormSchema = z.object({
   amount_rd: z.string()
     .min(1, 'El monto es requerido')
@@ -41,6 +47,7 @@ const proposalFormSchema = z.object({
     .refine((val) => !isNaN(val) && val > 0 && Number.isInteger(val), 'Debe ser un número entero positivo'),
 })
 
+type ProposalFormInput = z.infer<typeof proposalFormInputSchema>
 type ProposalFormValues = z.infer<typeof proposalFormSchema>
 
 interface ProposalFormProps {
@@ -54,11 +61,11 @@ export default function ProposalForm({ tenderId }: ProposalFormProps) {
   const [loading, setLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  const form = useForm<ProposalFormValues>({
-    resolver: zodResolver(proposalFormSchema),
+  const form = useForm<ProposalFormInput>({
+    resolver: zodResolver(proposalFormInputSchema),
     defaultValues: {
-      amount_rd: '' as any,
-      delivery_months: '' as any,
+      amount_rd: '',
+      delivery_months: '',
     },
   })
 
@@ -74,7 +81,7 @@ export default function ProposalForm({ tenderId }: ProposalFormProps) {
   }
 
   // Manejar envío del formulario
-  async function onSubmit(values: ProposalFormValues) {
+  async function onSubmit(values: ProposalFormInput) {
     if (!selectedFile) {
       toast({
         title: 'Error',
@@ -87,11 +94,14 @@ export default function ProposalForm({ tenderId }: ProposalFormProps) {
     try {
       setLoading(true)
 
+      // Transform the values using the schema
+      const transformedValues = proposalFormSchema.parse(values)
+
       // Crear FormData para envío multipart
       const formData = new FormData()
       formData.append('tender_id', tenderId)
-      formData.append('amount_rd', values.amount_rd.toString())
-      formData.append('delivery_months', values.delivery_months.toString())
+      formData.append('amount_rd', transformedValues.amount_rd.toString())
+      formData.append('delivery_months', transformedValues.delivery_months.toString())
       formData.append('file', selectedFile)
 
       const response = await fetch('/api/proposals', {

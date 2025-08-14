@@ -25,27 +25,39 @@ const GetQuerySchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/proposals called')
     const supabase = createServerSupabase()
     
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Auth check:', { user: user?.id, authError })
+    
     if (authError || !user) {
+      console.log('Authentication failed')
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Obtener perfil del usuario y verificar que es supplier
+    // Obtener perfil del usuario 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('supplier_id')
+      .select('role, supplier_id')
       .eq('id', user.id)
       .single()
 
-    if (profileError || !profile?.supplier_id) {
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Solo los proveedores pueden ver propuestas' },
+        { error: 'Usuario no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verificar que es admin o supplier
+    if (profile.role !== 'admin' && !profile.supplier_id) {
+      return NextResponse.json(
+        { error: 'Solo los administradores y proveedores pueden ver propuestas' },
         { status: 403 }
       )
     }
@@ -54,10 +66,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const queryParams = Object.fromEntries(searchParams.entries())
     
+    console.log('Query params received:', queryParams)
+    
     const validatedQuery = GetQuerySchema.safeParse(queryParams)
     if (!validatedQuery.success) {
+      console.error('Query validation failed:', validatedQuery.error.issues)
       return NextResponse.json(
-        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.errors },
+        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.issues },
         { status: 400 }
       )
     }
@@ -77,16 +92,25 @@ export async function GET(request: NextRequest) {
         doc_url,
         created_at,
         updated_at,
-        tenders!proposals_tender_id_fkey (
+        tenders (
           id,
           code,
           title,
           status,
           deadline,
           budget_rd
+        ),
+        suppliers (
+          id,
+          name,
+          rnc
         )
       `)
-      .eq('supplier_id', profile.supplier_id)
+
+    // Solo filtrar por supplier_id si no es admin
+    if (profile.role !== 'admin' && profile.supplier_id) {
+      query = query.eq('supplier_id', profile.supplier_id)
+    }
 
     // Aplicar filtros opcionales
     if (tender_id) {
@@ -101,7 +125,10 @@ export async function GET(request: NextRequest) {
       .order(orderBy, { ascending: orderDir === 'asc' })
       .range(offset, offset + limit - 1)
 
+    console.log('About to execute query...')
     const { data: proposals, error: queryError, count } = await query
+
+    console.log('Query result:', { proposals, queryError, count })
 
     if (queryError) {
       console.error('Error al consultar propuestas:', queryError)
@@ -112,10 +139,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener count total para paginación
-    const { count: totalCount } = await supabase
+    let countQuery = supabase
       .from('proposals')
       .select('*', { count: 'exact', head: true })
-      .eq('supplier_id', profile.supplier_id)
+
+    // Solo filtrar por supplier_id si no es admin
+    if (profile.role !== 'admin' && profile.supplier_id) {
+      countQuery = countQuery.eq('supplier_id', profile.supplier_id)
+    }
+
+    const { count: totalCount } = await countQuery
 
     return NextResponse.json({
       ok: true,
@@ -216,7 +249,7 @@ export async function POST(request: NextRequest) {
     const validatedData = ProposalCreateSchema.safeParse(validationData)
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de propuesta inválidos', details: validatedData.error.errors },
+        { error: 'Datos de propuesta inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }
@@ -238,7 +271,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validación 1: tender debe estar abierto
-    if (tender.status !== 'abierto') {
+    if (tender.status !== 'abierta') {
       return NextResponse.json(
         { error: 'Solo se pueden enviar propuestas a licitaciones abiertas' },
         { status: 422 }

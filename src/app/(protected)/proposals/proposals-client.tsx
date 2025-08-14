@@ -3,9 +3,15 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { FileText, Eye, ExternalLink } from 'lucide-react'
+import { FileText, Eye, ExternalLink, MoreHorizontal, Download, FileIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Table,
   TableBody,
@@ -40,6 +46,11 @@ interface Proposal {
     deadline: string
     budget_rd: number
   }
+  suppliers?: {
+    id: string
+    name: string
+    rnc: string
+  }
 }
 
 interface ProposalsData {
@@ -49,7 +60,8 @@ interface ProposalsData {
 
 interface ProposalsClientProps {
   initialData: ProposalsData
-  supplierId: string
+  supplierId?: string
+  userRole: string
 }
 
 const statusColors = {
@@ -68,7 +80,8 @@ const statusLabels = {
 
 export default function ProposalsClient({ 
   initialData, 
-  supplierId 
+  supplierId,
+  userRole
 }: ProposalsClientProps) {
   const [data] = useState<ProposalsData>(initialData)
 
@@ -126,9 +139,14 @@ export default function ProposalsClient({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mis Propuestas</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {userRole === 'admin' ? 'Todas las Propuestas' : 'Mis Propuestas'}
+        </h1>
         <p className="text-muted-foreground">
-          Gestiona y revisa el estado de tus propuestas enviadas
+          {userRole === 'admin' 
+            ? 'Gestiona y revisa todas las propuestas enviadas por los proveedores'
+            : 'Gestiona y revisa el estado de tus propuestas enviadas'
+          }
         </p>
       </div>
 
@@ -183,9 +201,14 @@ export default function ProposalsClient({
       {/* Tabla de propuestas */}
       <Card>
         <CardHeader>
-          <CardTitle>Historial de Propuestas</CardTitle>
+          <CardTitle>
+            {userRole === 'admin' ? 'Todas las Propuestas' : 'Historial de Propuestas'}
+          </CardTitle>
           <CardDescription>
-            Todas las propuestas que has enviado a licitaciones
+            {userRole === 'admin' 
+              ? 'Propuestas enviadas por todos los proveedores'
+              : 'Todas las propuestas que has enviado a licitaciones'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -194,8 +217,9 @@ export default function ProposalsClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Licitación</TableHead>
+                  {userRole === 'admin' && <TableHead>Proveedor</TableHead>}
                   <TableHead>Estado</TableHead>
-                  <TableHead>Mi Oferta</TableHead>
+                  <TableHead>Oferta</TableHead>
                   <TableHead>Plazo Ofrecido</TableHead>
                   <TableHead>Fecha Envío</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -204,17 +228,19 @@ export default function ProposalsClient({
               <TableBody>
                 {data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={userRole === 'admin' ? 7 : 6} className="text-center py-8">
                       <div className="text-muted-foreground">
                         <FileText className="mx-auto h-8 w-8 mb-2" />
-                        <p>No has enviado propuestas aún</p>
-                        <p className="text-sm">
-                          Ve a la{' '}
-                          <a href="/tenders" className="text-blue-600 hover:underline">
-                            lista de licitaciones
-                          </a>{' '}
-                          para participar
-                        </p>
+                        <p>{userRole === 'admin' ? 'No hay propuestas registradas' : 'No has enviado propuestas aún'}</p>
+                        {userRole !== 'admin' && (
+                          <p className="text-sm">
+                            Ve a la{' '}
+                            <a href="/tenders" className="text-blue-600 hover:underline">
+                              lista de licitaciones
+                            </a>{' '}
+                            para participar
+                          </p>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -232,6 +258,16 @@ export default function ProposalsClient({
                           </div>
                         </div>
                       </TableCell>
+                      {userRole === 'admin' && (
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{proposal.suppliers?.name || 'Sin nombre'}</div>
+                            <div className="text-sm text-muted-foreground">
+                              RNC: {proposal.suppliers?.rnc || 'N/A'}
+                            </div>
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge className={statusColors[proposal.status]}>
                           {statusLabels[proposal.status]}
@@ -247,26 +283,26 @@ export default function ProposalsClient({
                         {formatDate(proposal.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewTender(proposal.tender_id)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver Licitación
-                          </Button>
-                          {proposal.doc_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDocument(proposal.doc_url!)}
-                            >
-                              <FileText className="mr-2 h-4 w-4" />
-                              Mi Propuesta
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewTender(proposal.tender_id)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver Licitación
+                            </DropdownMenuItem>
+                            {proposal.doc_url && (
+                              <DropdownMenuItem onClick={() => handleViewDocument(proposal.doc_url!)}>
+                                <FileIcon className="mr-2 h-4 w-4" />
+                                {userRole === 'admin' ? 'Ver Propuesta' : 'Ver Mi Propuesta'}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

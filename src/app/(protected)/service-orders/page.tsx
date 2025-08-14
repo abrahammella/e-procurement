@@ -82,8 +82,17 @@ async function getServiceOrders(): Promise<ServiceOrdersData> {
     return { items: [], total: 0 }
   }
 
+  // Transform data to match interface
+  const transformedItems = items?.map((item: any) => ({
+    ...item,
+    proposals: item.proposals?.[0] ? {
+      ...item.proposals[0],
+      tenders: item.proposals[0].tenders?.[0] || null
+    } : null
+  })) || []
+
   return {
-    items: items || [],
+    items: transformedItems,
     total: count || 0
   }
 }

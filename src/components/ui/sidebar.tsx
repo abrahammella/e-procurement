@@ -26,11 +26,11 @@ interface SidebarProps {
 
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Tenders', href: '/tenders', icon: FileText },
-  { name: 'RFP', href: '/rfp', icon: FolderOpen },
-  { name: 'Suppliers', href: '/suppliers', icon: Users },
-  { name: 'Proposals', href: '/proposals', icon: FileCheck },
-  { name: 'Approvals', href: '/approvals', icon: CheckCircle },
+  { name: 'Licitaciones', href: '/tenders', icon: FileText },
+  { name: 'RFPs', href: '/rfp', icon: FolderOpen },
+  { name: 'Proveedores', href: '/suppliers', icon: Users },
+  { name: 'Propuestas', href: '/proposals', icon: FileCheck },
+  { name: 'Aprobaciones', href: '/approvals', icon: CheckCircle },
   { name: 'Service Orders', href: '/service-orders', icon: ClipboardList },
   { name: 'Invoices', href: '/invoices', icon: Receipt },
   { name: 'Notifications', href: '/notifications', icon: Bell },

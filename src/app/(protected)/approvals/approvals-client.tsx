@@ -147,18 +147,33 @@ export default function ApprovalsClient({
   const handleDecision = async (approval: Approval, decision: 'approved' | 'rejected') => {
     try {
       setLoading(true)
+      
+      console.log('🚀 Enviando decisión:', {
+        approval_id: approval.id,
+        token: approval.token,
+        decision,
+        comment: comment.trim(),
+        scope: approval.scope,
+        tender_id: approval.tender_id
+      })
+
+      const requestBody = {
+        token: approval.token,
+        decision,
+        comment: comment.trim() || undefined
+      }
+      
+      console.log('📤 Request body:', requestBody)
 
       const response = await fetch('/api/approvals', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: approval.token,
-          decision,
-          comment: comment.trim() || undefined
-        }),
+        body: JSON.stringify(requestBody),
       })
 
+      console.log('📥 Response status:', response.status)
       const result = await response.json()
+      console.log('📥 Response data:', result)
 
       if (!response.ok) {
         throw new Error(result.error || `Error al ${decision === 'approved' ? 'aprobar' : 'rechazar'}`)

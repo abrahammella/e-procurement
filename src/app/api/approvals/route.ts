@@ -28,8 +28,8 @@ const GetQuerySchema = z.object({
   scope: z.enum(['apertura_tender', 'comite_rfp', 'comite_ejecutivo', 'gerente_ti', 'director_ti', 'vp_ti']).optional(),
   decision: z.enum(['pending', 'approved', 'rejected']).optional(),
   approver_email: z.string().email().optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional().default('10'),
-  offset: z.string().regex(/^\d+$/).transform(Number).optional().default('0'),
+  limit: z.string().optional().default('10').pipe(z.coerce.number()),
+  offset: z.string().optional().default('0').pipe(z.coerce.number()),
 })
 
 /**
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     const validatedQuery = GetQuerySchema.safeParse(queryParams)
     if (!validatedQuery.success) {
       return NextResponse.json(
-        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.errors },
+        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.issues },
         { status: 400 }
       )
     }
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
     
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de aprobación inválidos', details: validatedData.error.errors },
+        { error: 'Datos de aprobación inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }
@@ -302,22 +302,39 @@ export async function POST(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
+    console.log('🚀 PATCH /api/approvals - Iniciando')
     const supabase = createServerSupabase()
+    
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      console.log('❌ Error de autenticación:', authError)
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+    console.log('✅ Usuario autenticado:', user.email)
     
     // Parsear y validar el body
     const body = await request.json()
+    console.log('📝 Body recibido:', body)
+    
     const validatedData = ApprovalUpdateSchema.safeParse(body)
     
     if (!validatedData.success) {
+      console.log('❌ Datos inválidos:', validatedData.error.issues)
       return NextResponse.json(
-        { error: 'Datos de actualización inválidos', details: validatedData.error.errors },
+        { error: 'Datos de actualización inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }
 
     const { token, decision, comment } = validatedData.data
+    console.log('🔑 Token:', token, 'Decision:', decision)
 
     // Buscar la aprobación por token
+    console.log('🔍 Buscando aprobación por token...')
     const { data: approval, error: approvalError } = await supabase
       .from('approvals')
       .select('*')
@@ -326,11 +343,19 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (approvalError || !approval) {
+      console.log('❌ Aprobación no encontrada:', approvalError)
       return NextResponse.json(
         { error: 'Token de aprobación inválido o ya procesado' },
         { status: 404 }
       )
     }
+    
+    console.log('✅ Aprobación encontrada:', {
+      id: approval.id,
+      scope: approval.scope,
+      tender_id: approval.tender_id,
+      current_decision: approval.decision
+    })
 
     // Verificar que no ha expirado
     if (new Date() > new Date(approval.expires_at)) {
@@ -347,7 +372,7 @@ export async function PATCH(request: NextRequest) {
         decision,
         decided_at: new Date().toISOString(),
         comment: comment || approval.comment,
-        decided_by: approval.approver_email // Registrar quién decidió
+        decided_by: user.id // Usar el ID del usuario autenticado
       })
       .eq('id', approval.id)
       .select('*')
@@ -359,6 +384,77 @@ export async function PATCH(request: NextRequest) {
         { error: 'Error al actualizar aprobación' },
         { status: 500 }
       )
+    }
+
+    console.log('Aprobación actualizada exitosamente:', updatedApproval)
+
+    // MANUAL TRIGGER: Si es apertura_tender, actualizar el estado del tender manualmente
+    if (updatedApproval.scope === 'apertura_tender' && updatedApproval.tender_id) {
+      console.log('🎯 MANUAL TRIGGER ACTIVADO')
+      console.log('📋 Approval actualizada:', {
+        id: updatedApproval.id,
+        scope: updatedApproval.scope,
+        tender_id: updatedApproval.tender_id,
+        decision: updatedApproval.decision
+      })
+      
+      // Primero verificar el estado actual del tender
+      const { data: currentTender, error: fetchError } = await supabase
+        .from('tenders')
+        .select('id, status, code, title')
+        .eq('id', updatedApproval.tender_id)
+        .single()
+      
+      if (fetchError) {
+        console.error('❌ Error al obtener tender actual:', fetchError)
+      } else {
+        console.log('📄 Tender antes de update:', currentTender)
+      }
+      
+      const newTenderStatus = decision === 'approved' ? 'abierta' : 'cancelada'
+      console.log('🔄 Intentando cambio de estado:', {
+        tender_id: updatedApproval.tender_id,
+        from: currentTender?.status || 'unknown',
+        to: newTenderStatus
+      })
+      
+      const { data: updatedTender, error: tenderUpdateError } = await supabase
+        .from('tenders')
+        .update({
+          status: newTenderStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedApproval.tender_id)
+        .select('*')
+        .single()
+
+      if (tenderUpdateError) {
+        console.error('❌ ERROR ACTUALIZANDO TENDER:', tenderUpdateError)
+        console.error('❌ Detalles:', JSON.stringify(tenderUpdateError, null, 2))
+        
+        // Intentar verificar si es un problema de permisos RLS
+        const { data: rlsTest, error: rlsError } = await supabase
+          .rpc('get_current_user_role')
+        
+        console.log('🔐 Test RLS - rol actual:', rlsTest, rlsError)
+      } else {
+        console.log('✅ ¡TENDER ACTUALIZADO EXITOSAMENTE!')
+        console.log('✅ Resultado:', {
+          tender_id: updatedTender.id,
+          code: updatedTender.code,
+          title: updatedTender.title,
+          old_status: currentTender?.status,
+          new_status: updatedTender.status,
+          updated_at: updatedTender.updated_at
+        })
+      }
+    } else {
+      console.log('⏭️ SKIP TENDER UPDATE:', {
+        scope: updatedApproval.scope,
+        tender_id: updatedApproval.tender_id,
+        is_apertura: updatedApproval.scope === 'apertura_tender',
+        has_tender_id: !!updatedApproval.tender_id
+      })
     }
 
     // Registrar evento de auditoría

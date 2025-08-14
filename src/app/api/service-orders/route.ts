@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     const validatedQuery = GetQuerySchema.safeParse(queryParams)
     if (!validatedQuery.success) {
       return NextResponse.json(
-        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.errors },
+        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.issues },
         { status: 400 }
       )
     }
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de orden inválidos', details: validatedData.error.errors },
+        { error: 'Datos de orden inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }
@@ -317,7 +317,7 @@ export async function PATCH(request: NextRequest) {
     
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de actualización inválidos', details: validatedData.error.errors },
+        { error: 'Datos de actualización inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }

@@ -127,7 +127,7 @@ export default function InvoicesClient({
     service_order_id: '',
     invoice_url: '',
     amount_rd: '',
-    status: 'recibida' as const
+    status: 'recibida' as 'recibida' | 'validada' | 'en_pago' | 'pagada' | 'rechazada'
   })
 
   const { toast } = useToast()

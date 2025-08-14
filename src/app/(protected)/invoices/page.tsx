@@ -108,8 +108,15 @@ async function getInvoices(): Promise<InvoicesData> {
     return { items: [], total: 0 }
   }
 
+  // Transform data to match interface
+  const transformedItems = items?.map((item: any) => ({
+    ...item,
+    proposals: item.proposals?.[0] || null,
+    service_orders: item.service_orders?.[0] || null
+  })) || []
+
   return {
-    items: items || [],
+    items: transformedItems,
     total: count || 0
   }
 }

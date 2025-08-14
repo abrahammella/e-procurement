@@ -13,6 +13,7 @@ interface Tender {
   created_at: string
   created_by: string
   rfp_path?: string // Opcional hasta que se agregue la columna en Supabase
+  proposal_count?: number // Para admins
 }
 
 interface TendersData {
@@ -53,8 +54,31 @@ async function getTenders(userRole?: string): Promise<TendersData> {
     return { items: [], total: 0 }
   }
 
+  // Si es admin, agregar conteo de propuestas
+  let processedItems = items || []
+  if (userRole === 'admin' && items?.length) {
+    const tenderIds = items.map(item => item.id)
+    const { data: proposalCounts } = await supabase
+      .from('proposals')
+      .select('tender_id')
+      .in('tender_id', tenderIds)
+
+    // Crear un mapa de conteos por tender_id
+    const countsMap = new Map()
+    proposalCounts?.forEach(proposal => {
+      const count = countsMap.get(proposal.tender_id) || 0
+      countsMap.set(proposal.tender_id, count + 1)
+    })
+
+    // Agregar el conteo a cada tender
+    processedItems = items.map(item => ({
+      ...item,
+      proposal_count: countsMap.get(item.id) || 0
+    }))
+  }
+
   return {
-    items: items || [],
+    items: processedItems,
     total: count || 0
   }
 }

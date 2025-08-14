@@ -79,12 +79,12 @@ async function getApprovals(): Promise<ApprovalsData> {
       decided_by,
       token,
       expires_at,
-      proposals!approvals_proposal_id_fkey (
+      proposals (
         id,
         amount_rd,
         delivery_months,
         status,
-        tenders!proposals_tender_id_fkey (
+        tenders (
           id,
           code,
           title,
@@ -122,9 +122,16 @@ async function getApprovals(): Promise<ApprovalsData> {
     return { items: [], total: 0 }
   }
 
+  // Transform data to match interface
+  const transformedItems = items?.map((item: any) => ({
+    ...item,
+    proposals: item.proposals?.[0] || null,
+    tenders: item.tenders?.[0] || null
+  })) || []
+
   return {
-    items: items || [],
-    total: items?.length || 0
+    items: transformedItems,
+    total: transformedItems.length
   }
 }
 

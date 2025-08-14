@@ -23,8 +23,8 @@ const GetQuerySchema = z.object({
   service_order_id: z.string().uuid().optional(),
   status: z.enum(['recibida', 'validada', 'en_pago', 'pagada', 'rechazada']).optional(),
   supplier_id: z.string().uuid().optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional().default('10'),
-  offset: z.string().regex(/^\d+$/).transform(Number).optional().default('0'),
+  limit: z.string().optional().default('10').pipe(z.coerce.number()),
+  offset: z.string().optional().default('0').pipe(z.coerce.number()),
   orderBy: z.enum(['created_at', 'amount_rd', 'status']).optional().default('created_at'),
   orderDir: z.enum(['asc', 'desc']).optional().default('desc'),
 })
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     const validatedQuery = GetQuerySchema.safeParse(queryParams)
     if (!validatedQuery.success) {
       return NextResponse.json(
-        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.errors },
+        { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.issues },
         { status: 400 }
       )
     }
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de factura inválidos', details: validatedData.error.errors },
+        { error: 'Datos de factura inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }
@@ -372,7 +372,7 @@ export async function PATCH(request: NextRequest) {
     
     if (!validatedData.success) {
       return NextResponse.json(
-        { error: 'Datos de actualización inválidos', details: validatedData.error.errors },
+        { error: 'Datos de actualización inválidos', details: validatedData.error.issues },
         { status: 400 }
       )
     }

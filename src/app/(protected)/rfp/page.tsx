@@ -83,8 +83,14 @@ async function getRfpDocs(): Promise<RfpData> {
     return { items: [], total: 0 }
   }
 
+  // Transform data to match interface
+  const transformedItems = items?.map((item: any) => ({
+    ...item,
+    tenders: item.tenders?.[0] || null
+  })) || []
+
   return {
-    items: items || [],
+    items: transformedItems,
     total: count || 0
   }
 }
