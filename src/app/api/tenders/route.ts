@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { logEvent } from '@/lib/events'
+import { sendTenderToN8N, sendRfpUploadToN8N } from '@/lib/n8n-webhook'
 
 // Zod Schemas
 const TenderCreateSchema = z.object({
@@ -243,7 +244,7 @@ export async function POST(request: NextRequest) {
         ...validatedData,
         created_by: authResult.user.id
       })
-      .select('id')
+      .select('*')
       .single()
 
     if (createError) {
@@ -263,6 +264,39 @@ export async function POST(request: NextRequest) {
       validatedData,
       authResult.user.id
     )
+
+    // Enviar webhook a N8N con los datos del tender
+    // Nota: No esperamos a que termine, se ejecuta en background
+    sendTenderToN8N({
+      id: tender.id,
+      code: tender.code,
+      title: tender.title,
+      description: tender.description,
+      budget_rd: tender.budget_rd,
+      delivery_max_months: tender.delivery_max_months,
+      deadline: tender.deadline,
+      status: tender.status,
+      created_by: tender.created_by,
+      created_at: tender.created_at,
+      rfp_url: tender.rfp_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/docs/${tender.rfp_path}` : undefined
+    }, tender.rfp_path).then(result => {
+      if (!result.success) {
+        console.error('Failed to send N8N webhook:', result.error)
+        // Log the webhook failure but don't fail the tender creation
+        logEvent(
+          supabase,
+          'tender',
+          tender.id,
+          'webhook_failed',
+          { error: result.error, webhook_url: 'n8n' },
+          authResult.user.id
+        )
+      } else {
+        console.log('N8N webhook sent successfully for tender:', tender.code)
+      }
+    }).catch(error => {
+      console.error('Error sending N8N webhook:', error)
+    })
 
     return NextResponse.json({
       ok: true,
@@ -364,10 +398,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Actualizar la licitación
-    const { error: updateError } = await supabase
+    const { data: updatedTender, error: updateError } = await supabase
       .from('tenders')
       .update(updateData)
       .eq('id', id)
+      .select('*')
+      .single()
 
     if (updateError) {
       console.error('Error updating tender:', updateError)
@@ -400,6 +436,37 @@ export async function PATCH(request: NextRequest) {
         },
         authResult.user.id
       )
+    }
+
+    // Si se actualizó el rfp_path, enviar webhook a N8N
+    if (updateData.rfp_path) {
+      console.log('RFP path updated, sending webhook to N8N...')
+      
+      // Si es la primera vez que se sube el RFP (no había antes), enviar el webhook completo
+      sendTenderToN8N({
+        id: updatedTender.id,
+        code: updatedTender.code,
+        title: updatedTender.title,
+        description: updatedTender.description,
+        budget_rd: updatedTender.budget_rd,
+        delivery_max_months: updatedTender.delivery_max_months,
+        deadline: updatedTender.deadline,
+        status: updatedTender.status,
+        created_by: updatedTender.created_by,
+        created_at: updatedTender.created_at,
+        rfp_url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/docs/${updateData.rfp_path}`
+      }, updateData.rfp_path).then(result => {
+        if (!result.success) {
+          console.error('Failed to send RFP webhook to N8N:', result.error)
+        } else {
+          console.log('RFP webhook sent successfully for tender:', updatedTender.code)
+        }
+      }).catch(error => {
+        console.error('Error sending RFP webhook:', error)
+      })
+      
+      // También enviar notificación específica de RFP upload
+      sendRfpUploadToN8N(id, updateData.rfp_path, updatedTender)
     }
 
     return NextResponse.json({
