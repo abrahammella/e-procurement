@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { logEvent } from '@/lib/events'
-import { sendProposalToN8N } from '@/lib/n8n-webhook'
+import { sendProposalToN8N } from '@/lib/webhooks/proposal-webhook'
 
 // Zod Schemas
 const ProposalCreateSchema = z.object({
