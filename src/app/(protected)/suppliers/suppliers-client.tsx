@@ -327,7 +327,7 @@ export default function SuppliersClient({
       rnc: supplier.rnc || '',
       status: supplier.status,
       certified: supplier.certified,
-      certifications: supplier.certifications,
+      certifications: supplier.certifications || [],
       experience_years: supplier.experience_years,
       support_months: supplier.support_months,
       contact_email: supplier.contact_email || ''
@@ -645,7 +645,7 @@ export default function SuppliersClient({
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          {supplier.certifications.length === 0 ? (
+                          {!supplier.certifications || supplier.certifications.length === 0 ? (
                             <span className="text-sm text-muted-foreground">Ninguna</span>
                           ) : (
                             <>
