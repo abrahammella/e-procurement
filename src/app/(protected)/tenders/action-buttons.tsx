@@ -52,7 +52,7 @@ function ActionButtonsComponent({
       console.log('Returning APPLIED status')
       return {
         status: 'applied',
-        label: 'Ya Aplicaste',
+        label: 'Aplicaste',
         icon: CheckCircle,
         color: 'bg-green-100 text-green-800'
       }

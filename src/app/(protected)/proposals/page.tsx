@@ -11,7 +11,6 @@ interface Proposal {
   status: 'recibida' | 'en_evaluacion' | 'rechazada' | 'adjudicada'
   doc_url: string | null
   created_at: string
-  updated_at: string
   tenders: {
     id: string
     code: string

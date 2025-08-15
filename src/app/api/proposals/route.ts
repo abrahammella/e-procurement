@@ -25,15 +25,12 @@ const GetQuerySchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('GET /api/proposals called')
     const supabase = createServerSupabase()
     
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('Auth check:', { user: user?.id, authError })
     
     if (authError || !user) {
-      console.log('Authentication failed')
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -66,11 +63,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const queryParams = Object.fromEntries(searchParams.entries())
     
-    console.log('Query params received:', queryParams)
-    
     const validatedQuery = GetQuerySchema.safeParse(queryParams)
     if (!validatedQuery.success) {
-      console.error('Query validation failed:', validatedQuery.error.issues)
       return NextResponse.json(
         { error: 'Parámetros de consulta inválidos', details: validatedQuery.error.issues },
         { status: 400 }
@@ -91,7 +85,6 @@ export async function GET(request: NextRequest) {
         status,
         doc_url,
         created_at,
-        updated_at,
         tenders (
           id,
           code,
@@ -125,10 +118,7 @@ export async function GET(request: NextRequest) {
       .order(orderBy, { ascending: orderDir === 'asc' })
       .range(offset, offset + limit - 1)
 
-    console.log('About to execute query...')
     const { data: proposals, error: queryError, count } = await query
-
-    console.log('Query result:', { proposals, queryError, count })
 
     if (queryError) {
       console.error('Error al consultar propuestas:', queryError)

@@ -405,19 +405,41 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
 
       // Si hay archivo PDF, subirlo directamente desde el cliente
       if (selectedFile && result.data?.id) {
+        console.log('Starting file upload...', { fileName: selectedFile.name, size: selectedFile.size })
         setUploadProgress(20)
         
         try {
+          console.log('Starting file upload...', { 
+            fileName: selectedFile.name, 
+            size: selectedFile.size,
+            type: selectedFile.type 
+          })
+          
           // Importar cliente de Supabase
           const { supabase } = await import('@/lib/supabase')
+          console.log('Supabase client loaded')
+          
+          // Validaciones básicas
+          if (!selectedFile) {
+            throw new Error('No hay archivo seleccionado')
+          }
+          
+          if (selectedFile.type !== 'application/pdf') {
+            throw new Error('Solo se permiten archivos PDF')
+          }
+          
+          if (selectedFile.size > 20 * 1024 * 1024) { // 20MB
+            throw new Error('El archivo es muy grande (máximo 20MB)')
+          }
           
           // Generar nombre único
           const timestamp = Date.now()
           const fileName = `rfps/${timestamp}-${selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+          console.log('Uploading to:', fileName)
           
           setUploadProgress(50)
           
-          // Subir archivo directamente desde el cliente
+          // Subir archivo
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('docs')
             .upload(fileName, selectedFile, {
@@ -426,13 +448,21 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
               upsert: false
             })
 
+          console.log('Upload response:', { uploadData, uploadError })
+
           if (uploadError) {
+            console.error('Upload failed:', uploadError)
             throw new Error(`Error al subir: ${uploadError.message}`)
+          }
+
+          if (!uploadData?.path) {
+            throw new Error('No se obtuvo path del archivo subido')
           }
 
           setUploadProgress(80)
           
           // Actualizar el tender con el path del archivo
+          console.log('Updating tender with file path...', uploadData.path)
           const updateResponse = await fetch('/api/tenders', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -442,13 +472,18 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
             }),
           })
           
+          console.log('Update response status:', updateResponse.status)
+          
           if (updateResponse.ok) {
             setUploadProgress(100)
+            console.log('File upload and tender update successful')
             toast({
               title: 'Éxito',
               description: 'Licitación y documento RFP guardados correctamente',
             })
           } else {
+            const updateError = await updateResponse.text()
+            console.error('Update error:', updateError)
             toast({
               title: 'Advertencia', 
               description: 'Licitación creada, archivo subido, pero error al asociar el documento',
@@ -456,23 +491,27 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
             })
           }
         } catch (error) {
+          console.error('File upload error:', error)
           toast({
             title: 'Error en subida',
             description: `Error al subir archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`,
             variant: 'destructive',
           })
+          setUploadProgress(0)
         }
+      } else {
+        // No hay archivo, solo mostrar éxito de creación
+        toast({
+          title: 'Éxito',
+          description: editingTender ? 'Licitación actualizada' : 'Licitación creada',
+        })
       }
-
-      toast({
-        title: 'Éxito',
-        description: editingTender ? 'Licitación actualizada' : 'Licitación creada',
-      })
 
       setIsDialogOpen(false)
       router.refresh()
       loadTenders()
     } catch (error) {
+      console.error('Form submission error:', error)
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Error al guardar',
@@ -480,6 +519,7 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
       })
     } finally {
       setLoading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -774,7 +814,7 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                       name="budget_rd"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Presupuesto (RD$)</FormLabel>
+                          <FormLabel>Monto Licitación (RD$)</FormLabel>
                           <FormControl>
                             <Input 
                               {...field} 
