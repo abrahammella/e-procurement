@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { logEvent } from '@/lib/events'
+import { sendProposalToN8N } from '@/lib/n8n-webhook'
 
 // Zod Schemas
 const ProposalCreateSchema = z.object({
@@ -385,6 +386,35 @@ export async function POST(request: NextRequest) {
       console.error('Error logging proposal creation event:', eventError)
       // No fallar la operación por error de logging
     }
+
+    // Enviar webhook a N8N para notificar nueva propuesta
+    // Nota: Se ejecuta en background, no bloquea la respuesta
+    sendProposalToN8N({
+      id: proposal.id,
+      tender_id: proposal.tender_id,
+      supplier_id: proposal.supplier_id,
+      amount_rd: proposal.amount_rd,
+      delivery_months: proposal.delivery_months,
+      doc_url: proposal.doc_url,
+      status: proposal.status,
+      created_at: proposal.created_at
+    }, tender, { id: profile.supplier_id }).then(result => {
+      if (!result.success) {
+        console.error('Failed to send proposal webhook to N8N:', result.error)
+        // Log the webhook failure but don't fail the proposal creation
+        logEvent(
+          supabase,
+          'proposal',
+          proposal.id,
+          'webhook_failed',
+          { error: result.error, webhook_url: 'n8n_proposal' }
+        ).catch(err => console.error('Failed to log webhook error:', err))
+      } else {
+        console.log('N8N proposal webhook sent successfully for proposal:', proposal.id)
+      }
+    }).catch(error => {
+      console.error('Error sending N8N proposal webhook:', error)
+    })
 
     return NextResponse.json({
       ok: true,

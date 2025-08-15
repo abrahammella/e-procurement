@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CalendarIcon, FileText, Loader2, PlusCircle, Search, Trash2, Edit, MoreHorizontal, Eye, Settings, RefreshCw, Users, FileCheck } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -404,6 +405,12 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
       }
 
       // Si hay archivo PDF, subirlo directamente desde el cliente
+      console.log('Checking for file to upload:', { 
+        hasSelectedFile: !!selectedFile, 
+        fileName: selectedFile?.name,
+        tenderId: result.data?.id 
+      })
+      
       if (selectedFile && result.data?.id) {
         console.log('Starting file upload...', { fileName: selectedFile.name, size: selectedFile.size })
         setUploadProgress(20)
@@ -415,40 +422,119 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
             type: selectedFile.type 
           })
           
-          // Importar cliente de Supabase
-          const { supabase } = await import('@/lib/supabase')
-          console.log('Supabase client loaded')
+          // Cliente de Supabase ya importado al inicio
+          console.log('Using Supabase client')
           
           // Validaciones básicas
+          console.log('Starting validations...')
           if (!selectedFile) {
+            console.error('No file selected in validation')
             throw new Error('No hay archivo seleccionado')
           }
+          console.log('File exists check passed')
           
+          console.log('Checking file type:', selectedFile.type)
           if (selectedFile.type !== 'application/pdf') {
+            console.error('Invalid file type:', selectedFile.type)
             throw new Error('Solo se permiten archivos PDF')
           }
+          console.log('File type check passed')
           
+          console.log('Checking file size:', selectedFile.size, 'max:', 20 * 1024 * 1024)
           if (selectedFile.size > 20 * 1024 * 1024) { // 20MB
+            console.error('File too large:', selectedFile.size)
             throw new Error('El archivo es muy grande (máximo 20MB)')
           }
+          console.log('File size check passed')
           
           // Generar nombre único
+          console.log('Generating unique filename...')
           const timestamp = Date.now()
           const fileName = `rfps/${timestamp}-${selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
           console.log('Uploading to:', fileName)
           
           setUploadProgress(50)
+          console.log('Progress set to 50%')
+          
+          // Skip auth check - user is already authenticated to be on this page
+          console.log('Skipping auth check - user already authenticated')
           
           // Subir archivo
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          console.log('Attempting upload to bucket:', 'docs')
+          console.log('File details:', { 
+            name: fileName, 
+            size: selectedFile.size, 
+            type: selectedFile.type 
+          })
+          
+          // Test direct upload without timeout first
+          console.log('Starting direct upload...')
+          console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+          console.log('Bucket name:', 'docs')
+          console.log('File size:', selectedFile.size, 'bytes')
+          
+          // Try upload with timeout
+          const uploadPromise = supabase.storage
             .from('docs')
             .upload(fileName, selectedFile, {
               contentType: 'application/pdf',
               cacheControl: '3600',
-              upsert: false
+              upsert: true  // Allow overwrite if file exists
             })
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Upload timeout after 2 minutes')), 120000)
+          )
+          
+          console.log('Starting upload with 2-minute timeout...')
+          let { data: uploadData, error: uploadError } = await Promise.race([
+            uploadPromise,
+            timeoutPromise
+          ]) as any
 
           console.log('Upload response:', { uploadData, uploadError })
+          
+          // Si hay error o timeout, intentar método alternativo
+          if (uploadError || !uploadData) {
+            console.warn('Primary upload failed, trying alternative method...')
+            console.error('Upload error details:', uploadError)
+            
+            // Método alternativo usando fetch directo
+            try {
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+              const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+              
+              const uploadUrl = `${supabaseUrl}/storage/v1/object/docs/${fileName}`
+              console.log('Alternative upload URL:', uploadUrl)
+              
+              const response = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/pdf',
+                  'cache-control': 'max-age=3600'
+                },
+                body: selectedFile
+              })
+              
+              console.log('Alternative upload response:', response.status, response.statusText)
+              
+              if (response.ok) {
+                const result = await response.json()
+                console.log('Alternative upload successful:', result)
+                // Simular estructura de Supabase
+                uploadData = { path: fileName }
+                uploadError = null
+              } else {
+                const errorText = await response.text()
+                console.error('Alternative upload failed:', errorText)
+                throw new Error(`Alternative upload failed: ${response.status} ${errorText}`)
+              }
+            } catch (altError) {
+              console.error('Alternative upload method failed:', altError)
+              throw new Error(`Upload failed: ${altError instanceof Error ? altError.message : 'Unknown error'}`)
+            }
+          }
 
           if (uploadError) {
             console.error('Upload failed:', uploadError)
@@ -463,16 +549,27 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
           
           // Actualizar el tender con el path del archivo
           console.log('Updating tender with file path...', uploadData.path)
+          console.log('Tender ID:', result.data.id)
+          
+          const updatePayload = {
+            id: result.data.id,
+            rfp_path: uploadData.path,
+          }
+          console.log('Update payload:', updatePayload)
+          
           const updateResponse = await fetch('/api/tenders', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: result.data.id,
-              rfp_path: uploadData.path,
-            }),
+            body: JSON.stringify(updatePayload),
           })
           
           console.log('Update response status:', updateResponse.status)
+          console.log('Update response headers:', updateResponse.headers)
+          
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text()
+            console.error('Update request failed:', errorText)
+          }
           
           if (updateResponse.ok) {
             setUploadProgress(100)
@@ -492,6 +589,9 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
           }
         } catch (error) {
           console.error('File upload error:', error)
+          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
+          console.error('Full error object:', error)
+          
           toast({
             title: 'Error en subida',
             description: `Error al subir archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`,
@@ -914,6 +1014,7 @@ export default function TendersClient({ initialData, isAdmin, isSupplier, suppli
                             return
                           }
                           setSelectedFile(file)
+                          console.log('File selected:', { name: file.name, size: file.size, type: file.type })
                         }
                       }}
                     />

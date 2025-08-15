@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
       created_by: tender.created_by,
       created_at: tender.created_at,
       rfp_url: tender.rfp_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/docs/${tender.rfp_path}` : undefined
-    }, tender.rfp_path).then(result => {
+    }, tender.rfp_path, 'tender_created').then(result => {
       if (!result.success) {
         console.error('Failed to send N8N webhook:', result.error)
         // Log the webhook failure but don't fail the tender creation
@@ -455,7 +455,7 @@ export async function PATCH(request: NextRequest) {
         created_by: updatedTender.created_by,
         created_at: updatedTender.created_at,
         rfp_url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/docs/${updateData.rfp_path}`
-      }, updateData.rfp_path).then(result => {
+      }, updateData.rfp_path, 'tender_updated').then(result => {
         if (!result.success) {
           console.error('Failed to send RFP webhook to N8N:', result.error)
         } else {
@@ -466,14 +466,14 @@ export async function PATCH(request: NextRequest) {
       })
       
       // También enviar notificación específica de RFP upload
-      sendRfpUploadToN8N(id, updateData.rfp_path, updatedTender)
-    }
+      // sendRfpUploadToN8N(id, updateData.rfp_path, updatedTender)
+    
 
     return NextResponse.json({
       ok: true,
       data: { id }
     })
-
+  }
   } catch (error) {
     console.error('PATCH /api/tenders error:', error)
     
